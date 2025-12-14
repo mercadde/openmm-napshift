@@ -1,0 +1,5 @@
+setup.py
+openmmnapshift.egg-info/PKG-INFO
+openmmnapshift.egg-info/SOURCES.txt
+openmmnapshift.egg-info/dependency_links.txt
+openmmnapshift.egg-info/top_level.txt

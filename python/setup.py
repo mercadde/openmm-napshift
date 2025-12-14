@@ -1,0 +1,36 @@
+from setuptools import setup, Extension
+import os
+import platform
+
+version = '@OPENMM_NAPSHIFT_VERSION@'
+openmm_dir = '@OPENMM_DIR@'
+torch_include_dirs = '@TORCH_INCLUDE_DIRS@'.split(';')
+napshift_plugin_header_dir = '@NAPSHIFT_PLUGIN_HEADER_DIR@'
+napshift_plugin_library_dir = 'NAPSHIFT_PLUGIN_LIBRARY_DIR'
+torch_dir, _ = os.path.split('@TORCH_LIBRARY@') 
+
+# setup extra compile and link arguments on Mac
+extra_compile_args = ['-std=c++17']
+extra_link_args = []
+
+if platform.system() == 'Darwin':
+    extra_compile_args += ['-stdlib=libc++', '-mmacosx-version-min=10.13']
+    extra_link_args += ['-stdlib=libc++', '-mmacosx-version-min=10.13', '-Wl', '-rpath', openmm_dir+'/lib', '-rpath', torch_dir]
+
+extension = Extension(name='openmmnapshift._napshiftforce',
+                      sources=['openmmnapshift/NapShiftForceWrapper.cpp'],
+                      libraries=['OpenMM', 'OpenMMNapShift'],
+                      include_dirs=[os.path.join(openmm_dir, 'include'), napshift_plugin_header_dir] + torch_include_dirs,
+                      library_dirs=[os.path.join(openmm_dir, 'lib'), napshift_plugin_library_dir],
+                      runtime_library_dirs=[os.path.join(openmm_dir, 'lib')],
+                      extra_compile_args=extra_compile_args,
+                      extra_link_args=extra_link_args
+                     )
+
+setup(name='openmmnapshift',
+      version=version,
+      py_modules=['openmmnapshift.napshiftforce'],
+      ext_modules=[extension],
+      packages=['openmmnapshift',],
+      package_data={'openmmnapshift':['PytorchModels/*.pt']}
+     )

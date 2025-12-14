@@ -1,0 +1,5 @@
+build/
+packaging/
+environments/
+
+*.xtc
