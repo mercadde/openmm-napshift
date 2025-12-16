@@ -8,4 +8,5 @@ The main contribution of this repository is the `NapShiftForce` class, which der
 ## Building from Source
 
 # Using the OpenMM NapShift plugin
-CS restraints can be applied to atomistic-resultion simulations, simulations with the Martini3 forcefield, and simulations with forcefields which use only CA atoms. Tutorials for each of these are provided:
+CS restraints can be applied to atomistic-resolution simulations, simulations with the Martini3 forcefield, and simulations with forcefields which use only CA atoms. Tutorials for each of these are provided:
+
