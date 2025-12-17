@@ -64,7 +64,8 @@ CS restraints can be applied to atomistic-resolution simulations, simulations wi
 - [Creating Chemical Shift input files](tutorials/create_input_files.ipynb)
 - [Running all-atomistic simulations with Chemical Shift restraints](tutorials/all_atom_tutorial.ipynb)
 - [Running Martini3 simulations with Chemical Shift restraints](tutorials/martini_tutorial.ipynb)
-- [Running dramatically coarse-grained (e.g. CALVADOS) simulations with Chemical Shift restraints](tutorials/CA_tutorial.ipyn)
+- [Running dramatically coarse-grained (e.g. CALVADOS) simulations with Chemical Shift restraints](tutorials/CA_tutorial.ipynb)
+
 
 
 
