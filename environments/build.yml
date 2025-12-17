@@ -1,0 +1,25 @@
+name: BuildOpenMMNapShift
+channels:
+  - anaconda
+  - conda-forge
+  - defaults
+dependencies:
+    - cuda-crt-tools 12.9.86 ha770c72_2
+    - cuda-cudart 12.9.79 h5888daf_0
+    - cuda-cudart_linux-64 12.9.79 h3f2d84a_0
+    - cuda-cuobjdump 12.9.82 hffce074_1
+    - cuda-cupti 12.9.79 h676940d_1
+    - cuda-nvcc-tools 12.9.86 he02047a_2
+    - cuda-nvdisasm 12.9.88 hffce074_1
+    - cuda-nvrtc 12.9.86 hecca717_1
+    - cuda-nvtx 12.9.79 hecca717_1
+    - cuda-nvvm-tools 12.9.86 h4bc722e_2
+    - cuda-toolkit
+    - cuda-version 12.9 h4f385c5_3
+    - cudnn 9.10.2.21 hbcb9cd8_0
+    - openmm 8.4.0 py311he07d46e_1
+    - pip 
+    - python 3.11.14 
+    - pytorch 2.9.1 cuda129_mkl_py311_hcbd18c7_301
+    - setuptools 
+    - swig 

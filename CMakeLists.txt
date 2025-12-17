@@ -6,24 +6,16 @@ SET(OPENMM_NAPSHIFT_VERSION 1.0 CACHE STRING "The version of OpenMM-Torch that w
 
 CMAKE_MINIMUM_REQUIRED(VERSION 3.5)
 
-#SET(CMAKE_CUDA_COMPILER "/home/mina/anaconda3/envs/BuildOpenMMNapShift/bin/nvcc")
-
-#include_directories("${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
-
 # We need to know where OpenMM is installed so we can access the headers and libraries.
-#SET(OPENMM_DIR "/home/mina/anaconda3/envs/testopenmm" CACHE PATH "Where OpenMM is installed")
 INCLUDE_DIRECTORIES("${OPENMM_DIR}/include")
 LINK_DIRECTORIES("${OPENMM_DIR}/lib" "${OPENMM_DIR}/lib/plugins")
 
 # We need to know where LibTorch is installed so we can access the headers and libraries.
-#SET(PYTORCH_DIR "/home/mina/anaconda3/envs/testopenmm/lib/python3.11/site-packages/torch/share/cmake" CACHE PATH "Where the PyTorch C++ API is installed")
-SET(CMAKE_PREFIX_PATH "${PYTORCH_DIR}")
+SET(CMAKE_PREFIX_PATH "${PYTORCH_DIR}" CACHE PATH "Where the PyTorch C++ API is installed")
 FIND_PACKAGE(Torch REQUIRED)
 
 # Specify the C++ version we are building for.
 SET (CMAKE_CXX_STANDARD 17)
-
-#SET(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.6/bin/nvcc")
 
 # Set flags for linking on mac
 IF(APPLE)
@@ -126,8 +118,3 @@ ENDIF(PYTHON_EXECUTABLE AND SWIG_EXECUTABLE)
 IF(NAPSHIFT_BUILD_PYTHON_WRAPPERS)
     ADD_SUBDIRECTORY(python)
 ENDIF(NAPSHIFT_BUILD_PYTHON_WRAPPERS)
-
-message("CUDA DIRS:")
-message("CMAKE_CUDA_COMPILER: ${CMAKE_CUDA_COMPILER}")
-message("CUDA_INCLUDE_DIRS: ${CUDA_INCLUDE_DIRS}")
-message("CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES: ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")

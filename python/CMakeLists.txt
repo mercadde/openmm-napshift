@@ -5,10 +5,6 @@ file(GLOB_RECURSE PYTORCH_FILES RELATIVE "${CMAKE_SOURCE_DIR}"
     "${CMAKE_SOURCE_DIR}/python/openmmnapshift/PytorchModels/*.pt"
 )
 set(COPIED_PYTORCH_FILES)
-message("copying files")
-message("${CMAKE_SOURCE_DIR}")
-message("${CMAKE_BINARY_DIR}")
-message("${PYTORCH_FILES}")
 foreach(PYTORCH_FILE ${PYTORCH_FILES})
     set(infile "${CMAKE_SOURCE_DIR}/${PYTORCH_FILE}")
     set(outfile "${CMAKE_BINARY_DIR}/${PYTORCH_FILE}")
@@ -18,7 +14,6 @@ foreach(PYTORCH_FILE ${PYTORCH_FILES})
         DEPENDS "${infile}"
         COMMENT "CMake-copying file ${infile} to ${outfile}")
     set(COPIED_PYTORCH_FILES ${COPIED_PYTORCH_FILES} "${outfile}")
-    message("copied file ${PYTORCH_FILE}")
 endforeach()
 add_custom_target(CopyPytorchFiles ALL DEPENDS ${COPIED_PYTORCH_FILES})
 

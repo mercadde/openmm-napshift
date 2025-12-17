@@ -1,0 +1,79 @@
+{% set name = "openmmnapshift" %}
+{% set version = "0.0.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  git_url: https://github.com/mercadde/openmm-napshift.git
+  git_rev: v{{ version }}
+build:
+  number: 0
+  script: python -m pip install .
+
+requirements:
+  build:
+    - cmake
+    - cuda-cccl_linux-64 12.9.27 ha770c72_0
+    - cuda-crt-dev_linux-64 12.9.86 ha770c72_2
+    - cuda-crt-tools 12.9.86 ha770c72_2
+    - cuda-cudart 12.9.79 h5888daf_0
+    - cuda-cudart-dev 12.9.79 h5888daf_0
+    - cuda-cudart-dev_linux-64 12.9.79 h3f2d84a_0
+    - cuda-cudart-static 12.9.79 h5888daf_0
+    - cuda-cudart-static_linux-64 12.9.79 h3f2d84a_0
+    - cuda-cudart_linux-64 12.9.79 h3f2d84a_0
+    - cuda-driver-dev 12.9.79 h5888daf_0
+    - cuda-driver-dev_linux-64 12.9.79 h3f2d84a_0
+    - cuda-nvcc-dev_linux-64 12.9.86 he91c749_2
+    - cuda-nvcc-impl 12.9.86 h85509e4_2
+    - cuda-nvcc-tools 12.9.86 he02047a_2
+    - cuda-nvcc_linux-64 12.9.86 he0b4e1d_4
+    - cuda-nvml-dev 12.9.79 hffce074_1
+    - cuda-nvrtc 12.9.86 hecca717_1
+    - cuda-nvrtc-dev 12.9.86 hecca717_1
+    - cuda-nvtx 12.9.79 hecca717_1
+    - cuda-nvtx-dev 12.9.79 ha770c72_1
+    - cuda-nvvm-dev_linux-64 12.9.86 ha770c72_2
+    - cuda-nvvm-impl 12.9.86 h4bc722e_2
+    - cuda-nvvm-tools 12.9.86 h4bc722e_2
+    - cuda-version 12.9 h4f385c5_3
+    - gcc_impl_linux-64 14.3.0 h319ec69_15
+    - gcc_linux-64 14.3.0 h298d278_14
+    - gxx_impl_linux-64 14.3.0 h2185e75_15
+    - gxx_linux-64 14.3.0 hcfe7c2f_14
+    - make 
+    - cuda-toolkit
+  host:
+    - cpython 3.11.14 py311hd8ed1ab_2
+    - cuda-crt-tools 12.9.86 ha770c72_2
+    - cuda-cudart 12.9.79 h5888daf_0
+    - cuda-cudart_linux-64 12.9.79 h3f2d84a_0
+    - cuda-cuobjdump 12.9.82 hffce074_1
+    - cuda-cupti 12.9.79 h676940d_1
+    - cuda-nvcc-tools 12.9.86 he02047a_2
+    - cuda-nvdisasm 12.9.88 hffce074_1
+    - cuda-nvrtc 12.9.86 hecca717_1
+    - cuda-nvtx 12.9.79 hecca717_1
+    - cuda-nvvm-tools 12.9.86 h4bc722e_2
+    - cuda-version 12.9 h4f385c5_3
+    - cudnn 9.10.2.21 hbcb9cd8_0
+    - numpy 2.3.5 
+    - openmm 8.4.0 py311he07d46e_1
+    - pip 25.3 
+    - python 3.11.14 hd63d673_2_cpython
+    - python_abi 3.11 8_cp311
+    - pytorch 2.9.1 cuda129_mkl_py311_hcbd18c7_301
+    - swig 
+    - cuda-toolkit
+  run:
+    - __glibc >=2.17,<3.0.a0
+    - cuda-version >=12.9,<13
+    - libtorch >=2.9.1,<2.10.0a0
+    - openmm >=8.4.0,<8.5.0a0
+    - python >=3.11,<3.12.0a0
+    - python_abi 3.11.* *_cp311
+    - pytorch >=2.9.1,<2.10.0a0
+    - pynmrstar
+    
