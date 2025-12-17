@@ -28,13 +28,13 @@ conda install pycamcoil-1.0.0-py_0.conda
    conda activate BuildOpenMMNapShift
    cd ..
    ```
-2. Make build directory
+2. Make build directory:
    Create an empty directory to contain build outputs
    ```
    mkdir build
    cd build
    ```
-3. Run CMake
+3. Run CMake:
   
    Run CMake and specify where to source the OpenMM and LibTorch libraries, and where to find the CUDA compiler.
    ```
@@ -46,13 +46,13 @@ conda install pycamcoil-1.0.0-py_0.conda
    <path to LibTorch>: <path to BuildOpenMMNapShift environment>/lib/<python version>/site-packages/torch
    <path to CUDA compiler>: <path to BuildOpenMMNapShift environment>/bin/nvcc
    ```
-4. Run build targets
+4. Build targets:
 
    ```
    make install
    make PythonInstall
    ```
-5. Install the newly built package
+5. Install the newly built package:
 
    ```
    cd python
@@ -65,6 +65,7 @@ CS restraints can be applied to atomistic-resolution simulations, simulations wi
 - [Running all-atomistic simulations with Chemical Shift restraints](tutorials/all_atom_tutorial.ipynb)
 - [Running Martini3 simulations with Chemical Shift restraints](tutorials/martini_tutorial.ipynb)
 - [Running dramatically coarse-grained (e.g. CALVADOS) simulations with Chemical Shift restraints](tutorials/CA_tutorial.ipyn)
+
 
 
 
