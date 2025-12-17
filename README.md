@@ -56,11 +56,12 @@ python -m pip install .
 ```
 
 # Using the OpenMM NapShift plugin
-CS restraints can be applied to atomistic-resolution simulations, simulations with the Martini3 forcefield, and simulations with forcefields which use only CA atoms. Tutorials for each of these are provided:
+CS restraints can be applied to atomistic-resolution simulations, simulations with the Martini3 forcefield, and simulations with dramatically coarse-grained forcefields which represent only CA atoms. Tutorials for each of these are provided:
 - [Creating Chemical Shift input files](tutorials/create_input_files.ipynb)
 - [Running all-atomistic simulations with Chemical Shift restraints](tutorials/all_atom_tutorial.ipynb)
 - [Running Martini3 simulations with Chemical Shift restraints](tutorials/martini_tutorial.ipynb)
 - [Running dramatically coarse-grained (e.g. CALVADOS) simulations with Chemical Shift restraints](tutorials/CA_tutorial.ipyn)
+
 
 
 
