@@ -5,6 +5,19 @@ The main contribution of this repository is the `NapShiftForce` class, which der
 
 # Installation
 ## Installing with conda
+⚠️ TEMPORARY ⚠️
+
+We are still in the process of submitting this project to conda-forge, so for now it is not installable via conda. In the meantime, this functionality is provided by the package file available in [environments](environments). 
+```
+cd environments
+# conda environment containing all dependencies required to run the tutorials in this project
+conda env create -f run.yml 
+conda activate OpenMMNapShift
+conda install openmmnapshift-01.0.0-py_0.conda
+ # additional dependency not yet published to conda-forge, required to comupute random coil chemical shifts 
+conda install pycamcoil-1.0.0-py_0.conda
+```
+
 ## Building from source
 1. Install dependencies
 This project depends on the OpenMM and LibTorch libraries. A CUDA compiler is also required. OpenMM is available via conda, and instructions for LibToch installation can be found at https://pytorch.org. Alternatively, an environment file containing all required dependencies to build OpenMMNapShift can be found at [environments/build.yml](environments/build.yml):
@@ -44,5 +57,6 @@ python -m pip install .
 
 # Using the OpenMM NapShift plugin
 CS restraints can be applied to atomistic-resolution simulations, simulations with the Martini3 forcefield, and simulations with forcefields which use only CA atoms. Tutorials for each of these are provided:
+
 
 
