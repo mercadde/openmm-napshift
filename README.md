@@ -13,8 +13,8 @@ cd environments
 # conda environment containing all dependencies required to run the tutorials in this project
 conda env create -f run.yml 
 conda activate OpenMMNapShift
-conda install openmmnapshift-01.0.0-py_0.conda
- # additional dependency not yet published to conda-forge, required to comupute random coil chemical shifts 
+conda install openmmnapshift-1.0.0-py_0.conda
+ # additional dependency not yet published to conda-forge, required to compute random coil chemical shifts 
 conda install pycamcoil-1.0.0-py_0.conda
 ```
 
@@ -57,6 +57,7 @@ python -m pip install .
 
 # Using the OpenMM NapShift plugin
 CS restraints can be applied to atomistic-resolution simulations, simulations with the Martini3 forcefield, and simulations with forcefields which use only CA atoms. Tutorials for each of these are provided:
+
 
 
 
