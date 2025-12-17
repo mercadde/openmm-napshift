@@ -10,7 +10,6 @@ source:
   git_rev: v{{ version }}
 build:
   number: 0
-  script: python -m pip install .
 
 requirements:
   build:
@@ -75,5 +74,4 @@ requirements:
     - python >=3.11,<3.12.0a0
     - python_abi 3.11.* *_cp311
     - pytorch >=2.9.1,<2.10.0a0
-    - pynmrstar
     
