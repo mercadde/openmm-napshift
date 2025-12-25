@@ -92,28 +92,29 @@ bool NapShiftForce::usesEnsembleAveraging() const {
     return useEnsembleAveraging;
 }
 
-int NapShiftForce::addPeptide(int bbIndex, int scIndex, char resType, std::map<std::string, double> csExp, std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId){
-    peptides.push_back(std::unique_ptr<Peptide>(std::make_unique<Peptide>(bbIndex, scIndex, resType, csExp, csRC, csScale, resId, chainId)));
+int NapShiftForce::addPeptide(int bbIndex, int scIndex, char resType, std::map<std::string, double> csExp1, std::map<std::string, double> csExp2,  std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId){
+    peptides.push_back(std::unique_ptr<Peptide>(std::make_unique<Peptide>(bbIndex, scIndex, resType, csExp1, csExp2, csRC, csScale, resId, chainId)));
     return peptides.size()-1;
 }
-int NapShiftForce::addPeptide(int N, int C, int CA, int CB, int G, int D, char resType, std::map<std::string, double> csExp, std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId){
-    peptides.push_back(std::unique_ptr<AllAtomPeptide>(std::make_unique<AllAtomPeptide>(N, C, CA, CB, G, D, resType, csExp, csRC, csScale, resId, chainId)));
+int NapShiftForce::addPeptide(int N, int C, int CA, int CB, int G, int D, char resType, std::map<std::string, double> csExp1, std::map<std::string, double> csExp2, std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId){
+    peptides.push_back(std::unique_ptr<AllAtomPeptide>(std::make_unique<AllAtomPeptide>(N, C, CA, CB, G, D, resType, csExp1, csExp2, csRC, csScale, resId, chainId)));
     return peptides.size()-1;
 }
 
-void NapShiftForce::getPeptideParameters(int index, int& bbIndex, int& scIndex, char& resType, std::map<std::string, double>& csExp, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) const {
+void NapShiftForce::getPeptideParameters(int index, int& bbIndex, int& scIndex, char& resType, std::map<std::string, double>& csExp1, std::map<std::string, double>& csExp2, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) const {
     ASSERT_VALID_INDEX(index, peptides);
     bbIndex = peptides[index]->getParticleIndices()[0];
     scIndex = peptides[index]->getParticleIndices()[1];
     resType = peptides[index]->resType;
-    csExp = peptides[index]->csExp;
+    csExp1 = peptides[index]->csExp1;
+    csExp2 = peptides[index]->csExp2;
     csRC = peptides[index]->csRC;
     csScale = peptides[index]->csScale;
     resId = peptides[index]->resId;
     chainId = peptides[index]->chainId;
 }
 
-void NapShiftForce::getPeptideParameters(int index, int& N, int& C, int& CA, int& CB, int& G, int& D, char& resType, std::map<std::string, double>& csExp, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) const {
+void NapShiftForce::getPeptideParameters(int index, int& N, int& C, int& CA, int& CB, int& G, int& D, char& resType, std::map<std::string, double>& csExp1, std::map<std::string, double>& csExp2, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) const {
     ASSERT_VALID_INDEX(index, peptides);
     N = peptides[index]->getParticleIndices()[0];
     C = peptides[index]->getParticleIndices()[1];
@@ -122,29 +123,32 @@ void NapShiftForce::getPeptideParameters(int index, int& N, int& C, int& CA, int
     G = peptides[index]->getParticleIndices()[4];
     D = peptides[index]->getParticleIndices()[5];
     resType = peptides[index]->resType;
-    csExp = peptides[index]->csExp;
+    csExp1 = peptides[index]->csExp1;
+    csExp2 = peptides[index]->csExp2;
     csRC = peptides[index]->csRC;
     csScale = peptides[index]->csScale;
     resId = peptides[index]->resId;
     chainId = peptides[index]->chainId;
 }
 
-void NapShiftForce::setPeptideParameters(int index, int& bbIndex, int& scIndex, char& resType, std::map<std::string, double>& csExp, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) {
+void NapShiftForce::setPeptideParameters(int index, int& bbIndex, int& scIndex, char& resType, std::map<std::string, double>& csExp1, std::map<std::string, double>& csExp2, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) {
     ASSERT_VALID_INDEX(index, peptides);
     peptides[index]->setParticleIndices(bbIndex, scIndex);
     peptides[index]->resType = resType;
-    peptides[index]->csExp = csExp;
+    peptides[index]->csExp1 = csExp1;
+    peptides[index]->csExp2 = csExp2;
     peptides[index]->csScale = csScale;
     peptides[index]->csRC = csRC;
     peptides[index]->resId = resId;
     peptides[index]->chainId = chainId;
 }
 
-void NapShiftForce::setPeptideParameters(int index, int& N, int& C, int& CA, int& CB, int& G, int& D, char& resType, std::map<std::string, double>& csExp, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) {
+void NapShiftForce::setPeptideParameters(int index, int& N, int& C, int& CA, int& CB, int& G, int& D, char& resType, std::map<std::string, double>& csExp1, std::map<std::string, double>& csExp2, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) {
     ASSERT_VALID_INDEX(index, peptides);
     peptides[index]->setParticleIndices(N, C, CA, CB, G, D);
     peptides[index]->resType = resType;
-    peptides[index]->csExp = csExp;
+    peptides[index]->csExp1 = csExp1;
+    peptides[index]->csExp2 = csExp2;
     peptides[index]->csScale = csScale;
     peptides[index]->csRC = csRC;
     peptides[index]->resId = resId;

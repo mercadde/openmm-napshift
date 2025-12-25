@@ -93,26 +93,28 @@ void NapShiftForceProxy::serialize(const void* object, SerializationNode& node) 
         if (modelType == "all_atom") {
             int N, C, CA, CB, G, D;
             char resType;
-            std::map<std::string, double> csExp, csRC, csScale;
+            std::map<std::string, double> csExp1, csExp2, csRC, csScale;
             int resId;
             std::string chainID;
-            force.getPeptideParameters(i, N, C, CA, CB, G, D, resType, csExp, csRC, csScale, resId, chainID);
+            force.getPeptideParameters(i, N, C, CA, CB, G, D, resType, csExp1, csExp2, csRC, csScale, resId, chainID);
             std::string str_resType{resType};
             peptides.createChildNode("Peptide").setIntProperty("N", N).setDoubleProperty("C", C).setDoubleProperty("CA", CA).setDoubleProperty("CB", CB).setDoubleProperty("G", G).setDoubleProperty("D", D)
-                                               .setDoubleProperty("csExp_N", csExp["N"]).setDoubleProperty("csExp_C", csExp["C"]).setDoubleProperty("csExp_CA", csExp["CA"]).setDoubleProperty("csExp_CB", csExp["CB"]).setDoubleProperty("csExp_H", csExp["H"]).setDoubleProperty("csExp_HA", csExp["HA"])
+                                               .setDoubleProperty("csExp1_N", csExp1["N"]).setDoubleProperty("csExp1_C", csExp1["C"]).setDoubleProperty("csExp1_CA", csExp1["CA"]).setDoubleProperty("csExp1_CB", csExp1["CB"]).setDoubleProperty("csExp1_H", csExp1["H"]).setDoubleProperty("csExp1_HA", csExp1["HA"])
+                                               .setDoubleProperty("csExp2_N", csExp2["N"]).setDoubleProperty("csExp2_C", csExp2["C"]).setDoubleProperty("csExp2_CA", csExp2["CA"]).setDoubleProperty("csExp2_CB", csExp2["CB"]).setDoubleProperty("csExp2_H", csExp2["H"]).setDoubleProperty("csExp2_HA", csExp2["HA"])
                                                .setDoubleProperty("csRC_N", csRC["N"]).setDoubleProperty("csRC_C", csRC["C"]).setDoubleProperty("csRC_CA", csRC["CA"]).setDoubleProperty("csRC_CB", csRC["CB"]).setDoubleProperty("csRC_H", csRC["H"]).setDoubleProperty("csRC_HA", csRC["HA"])
                                                .setDoubleProperty("csScale_N", csScale["N"]).setDoubleProperty("csScale_C", csScale["C"]).setDoubleProperty("csScale_CA", csScale["CA"]).setDoubleProperty("csScale_CB", csScale["CB"]).setDoubleProperty("csScale_H", csScale["H"]).setDoubleProperty("csScale_HA", csScale["HA"])
                                                .setStringProperty("resType", str_resType).setIntProperty("resId", resId).setStringProperty("chainID", chainID);
         } else {
             int bb, sc;
             char resType;
-            std::map<std::string, double> csExp, csRC, csScale;
+            std::map<std::string, double> csExp1, csExp2, csRC, csScale;
             int resId;
             std::string chainID;
-            force.getPeptideParameters(i, bb, sc, resType, csExp, csRC, csScale, resId, chainID);
+            force.getPeptideParameters(i, bb, sc, resType, csExp1, csExp2, csRC, csScale, resId, chainID);
             std::string str_resType{resType};
             peptides.createChildNode("Peptide").setIntProperty("bb", bb).setDoubleProperty("sc", sc)
-                                               .setDoubleProperty("csExp_N", csExp["N"]).setDoubleProperty("csExp_C", csExp["C"]).setDoubleProperty("csExp_CA", csExp["CA"]).setDoubleProperty("csExp_CB", csExp["CB"]).setDoubleProperty("csExp_H", csExp["H"]).setDoubleProperty("csExp_HA", csExp["HA"])
+                                               .setDoubleProperty("csExp1_N", csExp1["N"]).setDoubleProperty("csExp1_C", csExp1["C"]).setDoubleProperty("csExp1_CA", csExp1["CA"]).setDoubleProperty("csExp1_CB", csExp1["CB"]).setDoubleProperty("csExp1_H", csExp1["H"]).setDoubleProperty("csExp1_HA", csExp1["HA"])
+                                               .setDoubleProperty("csExp2_N", csExp2["N"]).setDoubleProperty("csExp2_C", csExp2["C"]).setDoubleProperty("csExp2_CA", csExp2["CA"]).setDoubleProperty("csExp2_CB", csExp2["CB"]).setDoubleProperty("csExp2_H", csExp2["H"]).setDoubleProperty("csExp2_HA", csExp2["HA"])
                                                .setDoubleProperty("csRC_N", csRC["N"]).setDoubleProperty("csRC_C", csRC["C"]).setDoubleProperty("csRC_CA", csRC["CA"]).setDoubleProperty("csRC_CB", csRC["CB"]).setDoubleProperty("csRC_H", csRC["H"]).setDoubleProperty("csRC_HA", csRC["HA"])
                                                .setDoubleProperty("csScale_N", csScale["N"]).setDoubleProperty("csScale_C", csScale["C"]).setDoubleProperty("csScale_CA", csScale["CA"]).setDoubleProperty("csScale_CB", csScale["CB"]).setDoubleProperty("csScale_H", csScale["H"]).setDoubleProperty("csScale_HA", csScale["HA"])
                                                .setStringProperty("resType", str_resType).setIntProperty("resId", resId).setStringProperty("chainID", chainID);
@@ -142,13 +144,20 @@ void* NapShiftForceProxy::deserialize(const SerializationNode& node) const {
                 force->setProperty(property.getStringProperty("name"), property.getStringProperty("value"));
         if (child.getName() == "Peptides") {
             for (auto& p : child.getChildren()) {
-                std::map<std::string, double> csExp {{"N", -1}, {"C", -1}, {"CA", -1}, {"CB", -1}, {"H", -1}, {"HA", -1}};
-                csExp["N"]  = p.getDoubleProperty("csExp_N");
-                csExp["C"]  = p.getDoubleProperty("csExp_C");
-                csExp["CA"] = p.getDoubleProperty("csExp_CA");
-                csExp["CB"] = p.getDoubleProperty("csExp_CB");
-                csExp["H"]  = p.getDoubleProperty("csExp_H");
-                csExp["HA"] = p.getDoubleProperty("csExp_HA");
+                std::map<std::string, double> csExp1 {{"N", -1}, {"C", -1}, {"CA", -1}, {"CB", -1}, {"H", -1}, {"HA", -1}};
+                csExp1["N"]  = p.getDoubleProperty("csExp1_N");
+                csExp1["C"]  = p.getDoubleProperty("csExp1_C");
+                csExp1["CA"] = p.getDoubleProperty("csExp1_CA");
+                csExp1["CB"] = p.getDoubleProperty("csExp1_CB");
+                csExp1["H"]  = p.getDoubleProperty("csExp1_H");
+                csExp1["HA"] = p.getDoubleProperty("csExp1_HA");
+                std::map<std::string, double> csExp2 {{"N", -1}, {"C", -1}, {"CA", -1}, {"CB", -1}, {"H", -1}, {"HA", -1}};
+                csExp2["N"]  = p.getDoubleProperty("csExp2_N");
+                csExp2["C"]  = p.getDoubleProperty("csExp2_C");
+                csExp2["CA"] = p.getDoubleProperty("csExp2_CA");
+                csExp2["CB"] = p.getDoubleProperty("csExp2_CB");
+                csExp2["H"]  = p.getDoubleProperty("csExp2_H");
+                csExp2["HA"] = p.getDoubleProperty("csExp2_HA");
                 std::map<std::string, double> csRC {{"N", -1}, {"C", -1}, {"CA", -1}, {"CB", -1}, {"H", -1}, {"HA", -1}};
                 csRC["N"]  = p.getDoubleProperty("csRC_N");
                 csRC["C"]  = p.getDoubleProperty("csRC_C");
@@ -166,10 +175,10 @@ void* NapShiftForceProxy::deserialize(const SerializationNode& node) const {
 
                 if (node.getStringProperty("modelType") == "all_atom") {
                     force->addPeptide(p.getIntProperty("N"), p.getIntProperty("C"), p.getIntProperty("CA"), p.getIntProperty("CB"), p.getIntProperty("G"), p.getIntProperty("D"),
-                                      p.getStringProperty("resType")[0], csExp, csRC, csScale, p.getIntProperty("resId"), p.getStringProperty("chainID"));
+                                      p.getStringProperty("resType")[0], csExp1, csExp2, csRC, csScale, p.getIntProperty("resId"), p.getStringProperty("chainID"));
                 } else {
                     force->addPeptide(p.getIntProperty("bb"), p.getIntProperty("sc"),
-                                      p.getStringProperty("resType")[0], csExp, csRC, csScale, p.getIntProperty("resId"), p.getStringProperty("chainID"));                    
+                                      p.getStringProperty("resType")[0], csExp1, csExp2, csRC, csScale, p.getIntProperty("resId"), p.getStringProperty("chainID"));                    
                 }
             }
         }

@@ -177,7 +177,8 @@ void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShif
     RMSD = torch::empty({6}, realOptionsDevice);
     csTensor = torch::empty({numPeptides, numAtomTypes}, realOptionsDevice);
     randomCoilTensor = torch::empty({numPeptides, numAtomTypes}, realOptionsCPU);
-    CSExpTensor = torch::empty({numPeptides, numAtomTypes}, realOptionsCPU);
+    CSExpTensor1 = torch::empty({numPeptides, numAtomTypes}, realOptionsCPU);
+    CSExpTensor2 = torch::empty({numPeptides, numAtomTypes}, realOptionsCPU);
     ChemShiftScale = torch::empty({numPeptides, numAtomTypes}, realOptionsCPU);
 
     //ensemble averaging
@@ -185,7 +186,6 @@ void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShif
     dNapShift_dDelta = torch::zeros({numPeptides, numAtomTypes});
     dNapShift_dDelta = dNapShift_dDelta.to(device);
     // ---
-    csDifference = torch::empty({numPeptides, numAtomTypes}, realOptionsDevice);
 
     energyTensor = torch::empty({1}, realOptionsDevice);
     dNN_dAngle = torch::empty({numPeptides, fullInputVecSize}, realOptionsDevice);
@@ -195,19 +195,20 @@ void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShif
     //read NapShift peptides from frontend
     for (int i = 0; i < numPeptides; i++) {
         char resType;
-        std::map<std::string, double> csExp;
+        std::map<std::string, double> csExp1;
+        std::map<std::string, double> csExp2;
         std::map<std::string, double> csRC;
         std::map<std::string, double> csScale;
         int resId;
         std::string chainId;
         if (modelFormat == 0 || modelFormat == 1) { //CG format
             int bbIndex, scIndex;   
-            force.getPeptideParameters(i, bbIndex, scIndex, resType, csExp, csRC, csScale, resId, chainId);
-            peptides.push_back(std::make_unique<Peptide>(bbIndex, scIndex, resType, csExp, csRC, csScale, resId, chainId));
+            force.getPeptideParameters(i, bbIndex, scIndex, resType, csExp1, csExp2, csRC, csScale, resId, chainId);
+            peptides.push_back(std::make_unique<Peptide>(bbIndex, scIndex, resType, csExp1, csExp2, csRC, csScale, resId, chainId));
         } else { //all-atom format
             int N, C, CA, CB, G, D;
-            force.getPeptideParameters(i, N, C, CA, CB, G, D, resType, csExp, csRC, csScale, resId, chainId);
-            peptides.push_back(std::make_unique<AllAtomPeptide>(N, C, CA, CB, G, D, resType, csExp, csRC, csScale, resId, chainId));
+            force.getPeptideParameters(i, N, C, CA, CB, G, D, resType, csExp1, csExp2, csRC, csScale, resId, chainId);
+            peptides.push_back(std::make_unique<AllAtomPeptide>(N, C, CA, CB, G, D, resType, csExp1, csExp2, csRC, csScale, resId, chainId));
         }
     }
     //sort peptides by resid and chain to ensure that we create peptides triplets in the correct order
@@ -246,7 +247,8 @@ void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShif
         if (validPeptide(i)) {
             for (int a=0; a<numAtomTypes; a++) {
                 randomCoilTensor[i][a] = peptides[i]->csRC[atomTypes[a]];
-                CSExpTensor[i][a] = peptides[i]->csExp[atomTypes[a]];
+                CSExpTensor1[i][a] = peptides[i]->csExp1[atomTypes[a]];
+                CSExpTensor2[i][a] = peptides[i]->csExp2[atomTypes[a]];
                 ChemShiftScale[i][a] = peptides[i]->csScale[atomTypes[a]];
             }
             for (int j=0; j<22; j++) {
@@ -319,7 +321,8 @@ void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShif
     angleIndicesArray.uploadSubArray(angleIndicesTemp.data(), 0, numPeptides*numInputAngles*4, true);
         
     randomCoilTensor = randomCoilTensor.to(device);
-    CSExpTensor = CSExpTensor.to(device);
+    CSExpTensor1 = CSExpTensor1.to(device);
+    CSExpTensor2 = CSExpTensor2.to(device);
     ChemShiftScale = ChemShiftScale.to(device);
     inputTensor = inputTensor.to(device);
     inputTensor.requires_grad_();
@@ -434,7 +437,8 @@ static void executeGraph(bool includeForces,
                          vector<torch::jit::IValue>& inputs,
                          torch::Tensor& inputTensor,
                          torch::Tensor& randomCoilTensor,
-                         torch::Tensor& CSExpTensor,
+                         torch::Tensor& CSExpTensor1,
+                         torch::Tensor& CSExpTensor2,
                          torch::Tensor& NapShiftForceVector,
                          torch::Tensor& forcesToParticles,
                          torch::Tensor& modelErrors,
@@ -445,81 +449,28 @@ static void executeGraph(bool includeForces,
                          int& numInputAngles,
                          torch::Tensor& K,
                          torch::Tensor& csTensor,
-                         torch::Tensor& csDifference,
                          torch::Tensor& energyTensor,
                          torch::Tensor& dNN_dAngle,
                          torch::Tensor& relevant_dNN_dAngle) {
     NapShiftForceVector.zero_();
 
     csTensor = predictionModel.forward(inputs).toTensor();
-    csDifference = CSExpTensor - (csTensor + randomCoilTensor);
-    csDifference = torch::where((CSExpTensor == -1) | (randomCoilTensor == -1), 0.0, csDifference); //dealing with undefined inputs
-    csDifference = torch::where(torch::abs(csDifference) < modelErrors, 0.0, torch::abs(csDifference) - modelErrors); //apply flatbottom
-    energyTensor = K*torch::sum(ChemShiftScale*torch::square(csDifference)); 
+    torch::Tensor r1 = CSExpTensor1 - (csTensor + randomCoilTensor);
+    r1 = torch::where((CSExpTensor1 == -1) | (randomCoilTensor == -1), 0.0, r1); //dealing with undefined inputs
+    r1 = torch::where(torch::abs(r1) < modelErrors, 0.0, torch::abs(r1) - modelErrors); //apply flatbottom
+    r1 = torch::sqrt(torch::sum(torch::square(r1)));
+
+    torch::Tensor r2 = CSExpTensor2 - (csTensor + randomCoilTensor);
+    r2 = torch::where((CSExpTensor2 == -1) | (randomCoilTensor == -1), 0.0, r2); //dealing with undefined inputs
+    r2 = torch::where(torch::abs(r2) < modelErrors, 0.0, torch::abs(r2) - modelErrors); //apply flatbottom
+    r2 = torch::sqrt(torch::sum(torch::square(r2)));
+    
+    energyTensor = K*(-torch::exp(-torch::square(r1)/(2)) - torch::exp(-torch::square(r2)/(2)));
 
     dNN_dAngle = torch::autograd::grad({energyTensor}, {inputTensor})[0].detach();
     relevant_dNN_dAngle = torch::cat({torch::narrow(dNN_dAngle, 1, 22, 2*numInputAngles), torch::narrow(dNN_dAngle, 1, 44+2*numInputAngles, 2*numInputAngles), torch::narrow(dNN_dAngle, 1, 66+4*numInputAngles, 2*numInputAngles)}, 1).reshape({numPeptides, 3*2*numInputAngles, 1, 1}).repeat({1, 1, 4, 3});
 
     NapShiftForceVector += relevant_dNN_dAngle.view({-1, 3}).clone();
-}  
-
-static void executeGraphEnsembleAvg(bool includeForces,
-                         torch::jit::script::Module& predictionModel,
-                         vector<torch::jit::IValue>& inputs,
-                         torch::Tensor& inputTensor,
-                         torch::Tensor& randomCoilTensor,
-                         torch::Tensor& CSExpTensor,
-                         torch::Tensor& NapShiftForceVector,
-                         torch::Tensor& forcesToParticles,
-                         torch::Tensor& modelErrors,
-                         torch::Tensor& ChemShiftSTD,
-                         torch::Tensor& ChemShiftScale,
-                         int& numPeptides,
-                         int& numNapShiftParticles,
-                         int& numInputAngles,
-                         torch::Tensor& K,
-                         torch::Tensor& csTensor,
-                         torch::Tensor& avgCSTensor) {      
-
-    csTensor = predictionModel.forward(inputs).toTensor();
-
-    torch::Tensor csDifference = CSExpTensor - (csTensor + randomCoilTensor);
-    csDifference = torch::where(CSExpTensor == -1, 0.0, csDifference);
-    csDifference = torch::where(randomCoilTensor == -1, 0.0, csDifference);
-    // --- flatbottom ---
-    csDifference = torch::where(torch::abs(csDifference) < modelErrors, 0.0, csDifference);
-    csDifference = torch::where(csDifference < 0, csDifference + modelErrors, csDifference);
-    csDifference = torch::where(csDifference > 0, csDifference - modelErrors, csDifference);
-
-    // ------------------
-    //ensemble averaging 
-    torch::Tensor csDifferenceAvg = CSExpTensor - (avgCSTensor + randomCoilTensor);
-    csDifferenceAvg = torch::where(CSExpTensor == -1, 0.0, csDifferenceAvg);
-    csDifferenceAvg = torch::where(randomCoilTensor == -1, 0.0, csDifferenceAvg);
-    //apply flatbottom 
-    csDifferenceAvg = torch::where(torch::abs(csDifferenceAvg) < modelErrors, 0.0, csDifferenceAvg);
-    csDifferenceAvg = torch::where(csDifferenceAvg < 0, csDifferenceAvg + modelErrors, csDifferenceAvg); 
-    csDifferenceAvg = torch::where(csDifferenceAvg > 0, csDifferenceAvg - modelErrors, csDifferenceAvg);
-    // ------------------
-
-    torch::Tensor dNN_dAngleN = torch::autograd::grad({torch::sum(csTensor.transpose(0,1)[0])}, {inputTensor}, {}, true)[0];
-    torch::Tensor dNN_dAngleC = torch::autograd::grad({torch::sum(csTensor.transpose(0,1)[1])}, {inputTensor}, {}, true)[0];
-    torch::Tensor dNN_dAngleCA = torch::autograd::grad({torch::sum(csTensor.transpose(0,1)[2])}, {inputTensor}, {}, true)[0];
-    torch::Tensor dNN_dAngleCB = torch::autograd::grad({torch::sum(csTensor.transpose(0,1)[3])}, {inputTensor}, {}, true)[0];
-    torch::Tensor dNN_dAngleH = torch::autograd::grad({torch::sum(csTensor.transpose(0,1)[4])}, {inputTensor}, {}, true)[0];
-    torch::Tensor dNN_dAngleHA = torch::autograd::grad({torch::sum(csTensor.transpose(0,1)[5])}, {inputTensor}, {}, true)[0];
-
-    torch::Tensor dNapShift_dAngle = -2*K*(ChemShiftScale.transpose(0,1)[0].unsqueeze(1).repeat({1,3*(22+2*numInputAngles)})*csDifferenceAvg.transpose(0,1)[0].unsqueeze(1).repeat({1,3*(22+2*numInputAngles)})*dNN_dAngleN +
-                                           ChemShiftScale.transpose(0,1)[1].unsqueeze(1).repeat({1,3*(22+2*numInputAngles)})*csDifferenceAvg.transpose(0,1)[1].unsqueeze(1).repeat({1,3*(22+2*numInputAngles)})*dNN_dAngleC +
-                                           ChemShiftScale.transpose(0,1)[2].unsqueeze(1).repeat({1,3*(22+2*numInputAngles)})*csDifferenceAvg.transpose(0,1)[2].unsqueeze(1).repeat({1,3*(22+2*numInputAngles)})*dNN_dAngleCA +
-                                           ChemShiftScale.transpose(0,1)[3].unsqueeze(1).repeat({1,3*(22+2*numInputAngles)})*csDifferenceAvg.transpose(0,1)[3].unsqueeze(1).repeat({1,3*(22+2*numInputAngles)})*dNN_dAngleCB +
-                                           ChemShiftScale.transpose(0,1)[4].unsqueeze(1).repeat({1,3*(22+2*numInputAngles)})*csDifferenceAvg.transpose(0,1)[4].unsqueeze(1).repeat({1,3*(22+2*numInputAngles)})*dNN_dAngleH +
-                                           ChemShiftScale.transpose(0,1)[5].unsqueeze(1).repeat({1,3*(22+2*numInputAngles)})*csDifferenceAvg.transpose(0,1)[5].unsqueeze(1).repeat({1,3*(22+2*numInputAngles)})*dNN_dAngleHA);                                    
-    
-    torch::Tensor relevant_dNapShift_dAngle = torch::cat({torch::narrow(dNapShift_dAngle, 1, 22, 2*numInputAngles), torch::narrow(dNapShift_dAngle, 1, 44+2*numInputAngles, 2*numInputAngles), torch::narrow(dNapShift_dAngle, 1, 66+4*numInputAngles, 2*numInputAngles)}, 1).reshape({numPeptides, 3*2*numInputAngles, 1, 1}).repeat({1, 1, 4, 3});                      
-
-    torch::Tensor particleForceTensor = relevant_dNapShift_dAngle;
-    NapShiftForceVector += particleForceTensor.view({-1, 3}).clone();
 }  
 
 double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy) {
@@ -534,55 +485,32 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
 
     K.zero_();
     K += context.getParameter("NapShift_K");
-    if (ensembleAveraging) {
-        DownloadCSDifferenceAvgs(context);
-        UploadMyCSDifference(context);
-    }
 
     vector<torch::jit::IValue> inputs;
     inputs = {inputTensor};
 
     if (!useGraphs) { 
-            if (!ensembleAveraging || currentStep == 0) {
-                executeGraph(includeForces,
-                    model,
-                    inputs,
-                    inputTensor,
-                    randomCoilTensor,
-                    CSExpTensor,
-                    NapShiftForceVector,
-                    forcesToParticles,
-                    modelErrors,
-                    ChemShiftSTD,
-                    ChemShiftScale,
-                    numPeptides,
-                    numNapShiftParticles,
-                    numInputAngles,
-                    K,
-                    csTensor,
-                    csDifference,
-                    energyTensor,
-                    dNN_dAngle,
-                    relevant_dNN_dAngle);
-            } else {
-                executeGraphEnsembleAvg(includeForces,
-                    model,
-                    inputs,
-                    inputTensor,
-                    randomCoilTensor,
-                    CSExpTensor,
-                    NapShiftForceVector,
-                    forcesToParticles,
-                    modelErrors,
-                    ChemShiftSTD,
-                    ChemShiftScale,
-                    numPeptides,
-                    numNapShiftParticles,
-                    numInputAngles,
-                    K,
-                    csTensor,
-                    avgCSTensor);
-            }
+            executeGraph(includeForces,
+                model,
+                inputs,
+                inputTensor,
+                randomCoilTensor,
+                CSExpTensor1,
+                CSExpTensor2,
+                NapShiftForceVector,
+                forcesToParticles,
+                modelErrors,
+                ChemShiftSTD,
+                ChemShiftScale,
+                numPeptides,
+                numNapShiftParticles,
+                numInputAngles,
+                K,
+                csTensor,
+                energyTensor,
+                dNN_dAngle,
+                relevant_dNN_dAngle);
+
     } else {
         // Record graph if not already done
         bool is_graph_captured = false;
@@ -597,92 +525,52 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
             // record static pointers and shapes during capture.
             try {
                 for (int i = 0; i < this->warmupSteps; i++)
-                    if (!ensembleAveraging || currentStep == 0) {
-                        executeGraph(includeForces,
-                            model,
-                            inputs,
-                            inputTensor,
-                            randomCoilTensor,
-                            CSExpTensor,
-                            NapShiftForceVector,
-                            forcesToParticles,
-                            modelErrors,
-                            ChemShiftSTD,
-                            ChemShiftScale,
-                            numPeptides,
-                            numNapShiftParticles,
-                            numInputAngles,
-                            K,
-                            csTensor,
-                            csDifference,
-                            energyTensor,
-                            dNN_dAngle,
-                            relevant_dNN_dAngle);                        
-                    } else {
-                        executeGraphEnsembleAvg(includeForces,
-                            model,
-                            inputs,
-                            inputTensor,
-                            randomCoilTensor,
-                            CSExpTensor,
-                            NapShiftForceVector,
-                            forcesToParticles,
-                            modelErrors,
-                            ChemShiftSTD,
-                            ChemShiftScale,
-                            numPeptides,
-                            numNapShiftParticles,
-                            numInputAngles,
-                            K,
-                            csTensor,
-                            avgCSTensor);  
-                    }
+                    executeGraph(includeForces,
+                        model,
+                        inputs,
+                        inputTensor,
+                        randomCoilTensor,
+                        CSExpTensor1,
+                        CSExpTensor2,
+                        NapShiftForceVector,
+                        forcesToParticles,
+                        modelErrors,
+                        ChemShiftSTD,
+                        ChemShiftScale,
+                        numPeptides,
+                        numNapShiftParticles,
+                        numInputAngles,
+                        K,
+                        csTensor,
+                        energyTensor,
+                        dNN_dAngle,
+                        relevant_dNN_dAngle);
             }
             catch (std::exception& e) {
                 throw OpenMMException(string("NapShiftForce: Failed to warmup the model before graph construction. PyTorch reported the following error:\n") + e.what());
             }
             graphs[includeForces].capture_begin();
             try {
-                if (!ensembleAveraging || currentStep == 0) {
-                    executeGraph(includeForces,
-                        model,
-                        inputs,
-                        inputTensor,
-                        randomCoilTensor,
-                        CSExpTensor,
-                        NapShiftForceVector,
-                        forcesToParticles,
-                        modelErrors,
-                        ChemShiftSTD,
-                        ChemShiftScale,
-                        numPeptides,
-                        numNapShiftParticles,
-                        numInputAngles,
-                        K,
-                        csTensor,
-                        csDifference,
-                        energyTensor,
-                        dNN_dAngle,
-                        relevant_dNN_dAngle);
-                } else {
-                    executeGraphEnsembleAvg(includeForces,
-                        model,
-                        inputs,
-                        inputTensor,
-                        randomCoilTensor,
-                        CSExpTensor,
-                        NapShiftForceVector,
-                        forcesToParticles,
-                        modelErrors,
-                        ChemShiftSTD,
-                        ChemShiftScale,
-                        numPeptides,
-                        numNapShiftParticles,
-                        numInputAngles,
-                        K,
-                        csTensor,
-                        avgCSTensor);
-                }
+                executeGraph(includeForces,
+                    model,
+                    inputs,
+                    inputTensor,
+                    randomCoilTensor,
+                    CSExpTensor1,
+                    CSExpTensor2,
+                    NapShiftForceVector,
+                    forcesToParticles,
+                    modelErrors,
+                    ChemShiftSTD,
+                    ChemShiftScale,
+                    numPeptides,
+                    numNapShiftParticles,
+                    numInputAngles,
+                    K,
+                    csTensor,
+                    energyTensor,
+                    dNN_dAngle,
+                    relevant_dNN_dAngle);
                 is_graph_captured = true;
                 graphs[includeForces].capture_end();
             }
@@ -729,45 +617,5 @@ bool CudaCalcNapShiftForceKernel::neighbouringPeptides(int peptideIdx1, int pept
 int CudaCalcNapShiftForceKernel::NapShiftIndex(int systemIndex){
     if (systemIndex < 0) return numNapShiftParticles;
     return find(NapShiftParticles.begin(), NapShiftParticles.end(), systemIndex) - NapShiftParticles.begin();
-}
-
-void CudaCalcNapShiftForceKernel::DownloadCSDifferenceAvgs(ContextImpl& context) { 
-    const torch::Device device(torch::kCUDA, cu.getDeviceIndex());
-    avgCSTensor.zero_();
-    std::vector<float> temp(numAtomTypes*numPeptides);
-    for (int i=0; i<numPeptides; i++){
-        for (int a=0; a<numAtomTypes; a++) {
-            temp[i*numAtomTypes+a] = context.getParameter("NapShift_AvgCSDifference" + std::to_string(i) + atomTypes[a]);
-        }
-    }
-    torch::Tensor tempTensor = torch::from_blob(temp.data(), {numPeptides, numAtomTypes}, realOptionsCPU);
-    tempTensor = tempTensor.to(device);
-
-    void* avgCSData = getTensorPointer(cu, avgCSTensor);
-    void* tempData = getTensorPointer(cu, tempTensor);
-
-    int block_size = round64(round((numNapShiftParticles-1)/(device_multiprocessors-1)));
-    block_size = std::min(block_size, device_max_threads_per_block);
-
-    {
-        ContextSelector selector(cu); // Switch to the OpenMM context
-        void* inputArgs[] = {&avgCSData,
-                             &tempData,
-                             &numNapShiftParticles};
-        cu.executeKernel(DownloadCSDifferenceAvgDataKernel, inputArgs, numNapShiftParticles, block_size);
-        CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context"); // Synchronize before switching to the PyTorch context
-    }
-}
-
-void CudaCalcNapShiftForceKernel::UploadMyCSDifference(ContextImpl& context) { 
-    const torch::Device device(torch::kCUDA, cu.getDeviceIndex());
-    torch::Tensor tempTensor = csTensor.clone();
-    tempTensor = tempTensor.to("cpu");
-    auto tempTensor_a = tempTensor.accessor<float,2>();
-    for (int i=0; i<numPeptides; i++){
-        for (int a=0; a<numAtomTypes; a++) {
-            context.setParameter("NapShift_MyCSDifference" + std::to_string(i) + atomTypes[a], tempTensor_a[i][a]);
-        }
-    }
 }
 

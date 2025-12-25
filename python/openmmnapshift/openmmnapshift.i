@@ -83,12 +83,12 @@ public:
     bool usesPeriodicBoundaryConditions() const;
     void setUsesEnsembleAveraging(bool ensembleAveraging);
     bool usesEnsembleAveraging() const;
-    int addPeptide(int bbIndex, int scIndex, char resType, std::map<std::string, double> csExp, std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId);
-    int addPeptide(int N, int C, int CA, int CB, int G, int D, char resType, std::map<std::string, double> csExp, std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId);
-    void getPeptideParameters(int index, int& bbIndex, int& scIndex, char& resType, std::map<std::string, double>& csExp, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) const;
-    void getPeptideParameters(int index, int& N, int& C, int& CA, int& CB, int& G, int& D, char& resType, std::map<std::string, double>& csExp, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) const;
-    void setPeptideParameters(int index, int& bbIndex, int& scIndex, char& resType, std::map<std::string, double>& csExp, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId);
-    void setPeptideParameters(int index, int& N, int& C, int& CA, int& CB, int& G, int& D, char& resType, std::map<std::string, double>& csExp, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId);
+    int addPeptide(int bbIndex, int scIndex, char resType, std::map<std::string, double> csExp1, std::map<std::string, double> csExp2, std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId);
+    int addPeptide(int N, int C, int CA, int CB, int G, int D, char resType, std::map<std::string, double> csExp1, std::map<std::string, double> csExp2, std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId);
+    void getPeptideParameters(int index, int& bbIndex, int& scIndex, char& resType, std::map<std::string, double>& csExp1, std::map<std::string, double>& csExp2, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) const;
+    void getPeptideParameters(int index, int& N, int& C, int& CA, int& CB, int& G, int& D, char& resType, std::map<std::string, double>& csExp1, std::map<std::string, double>& csExp2, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) const;
+    void setPeptideParameters(int index, int& bbIndex, int& scIndex, char& resType, std::map<std::string, double>& csExp1, std::map<std::string, double>& csExp2, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId);
+    void setPeptideParameters(int index, int& N, int& C, int& CA, int& CB, int& G, int& D, char& resType, std::map<std::string, double>& csExp1, std::map<std::string, double>& csExp2, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId);
     int getNumPeptides() const;
     std::vector<std::string> getAtoms() const;
     void setProperty(const std::string& name, const std::string& value);

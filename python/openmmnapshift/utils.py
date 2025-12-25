@@ -84,8 +84,9 @@ def read_chemical_shifts(chemical_shifts_file):
             chemical_shifts_data[(resid,chainid)] = (restype, chemical_shifts, chemical_shifts_factors)
     return chemical_shifts_data
 
-def get_napshift_force(top, chemical_shifts_file, model_type):
-    chemical_shifts_data = read_chemical_shifts(chemical_shifts_file)
+def get_napshift_force(top, chemical_shifts_file1, chemical_shifts_file2, model_type):
+    chemical_shifts_data1 = read_chemical_shifts(chemical_shifts_file1)
+    chemical_shifts_data2 = read_chemical_shifts(chemical_shifts_file2)
     napshiftforce = NapShiftForce()
     camcoil = CamCoil()
 
@@ -96,8 +97,8 @@ def get_napshift_force(top, chemical_shifts_file, model_type):
             sequence = []
             for residue in chain.residues():
                 topology_restype = RESIDUE_TYPES[residue.name]
-                if (residue.id,chain.id) in chemical_shifts_data.keys():
-                    (restype,_,_) = chemical_shifts_data[(residue.id,chain.id)]
+                if (residue.id,chain.id) in chemical_shifts_data1.keys():
+                    (restype,_,_) = chemical_shifts_data1[(residue.id,chain.id)]
                     if restype == 'X' and topology_restype == 'C': topology_restype = 'X' # the chemical shift file indicates that this CYS residue should be CYO
                     if restype == 'O' and topology_restype == 'P': topology_restype = 'O' # the chemical shift file indicates that this PRO residue should be PRC
                     assert restype == topology_restype 
@@ -108,11 +109,12 @@ def get_napshift_force(top, chemical_shifts_file, model_type):
 
             for i, residue in enumerate(chain.residues()):
                 if residue.name not in RESIDUE_TYPES.keys():continue
-                if (residue.id,chain.id) in chemical_shifts_data.keys():
+                if (residue.id,chain.id) in chemical_shifts_data1.keys():
                     restype = sequence[i] # take the residue type from the sequence variable instead of from residue.name, since we may want CYO or PRC instead
                     random_coil_chemical_shifts = {atom: camcoil_predictions.iloc[i][atom] for atom in ATOM_TYPES}
-                    experimental_chemical_shifts = chemical_shifts_data[(residue.id,chain.id)][1]
-                    experimental_chemical_shift_factors = chemical_shifts_data[(residue.id,chain.id)][2]
+                    experimental_chemical_shifts1 = chemical_shifts_data1[(residue.id,chain.id)][1]
+                    experimental_chemical_shift_factors1 = chemical_shifts_data1[(residue.id,chain.id)][2]
+                    experimental_chemical_shifts2 = chemical_shifts_data2[(residue.id,chain.id)][1]
 
                     #get indices of the particles relevant to NapShift for this residue
                     peptide_particle_indices = [-1,-1]
@@ -135,9 +137,10 @@ def get_napshift_force(top, chemical_shifts_file, model_type):
                         raise NotImplementedError(f"model type {model_type} not implemented")
                     
                     napshiftforce.addPeptide(*peptide_particle_indices,restype,
-                                                {k:v if not np.isnan(v) else -1 for k,v in experimental_chemical_shifts.items()}, # -1 to indicate where data is not provided for a chemical shift, and that it should be ignored by the restraints
+                                                {k:v if not np.isnan(v) else -1 for k,v in experimental_chemical_shifts1.items()}, # -1 to indicate where data is not provided for a chemical shift, and that it should be ignored by the restraints
+                                                {k:v if not np.isnan(v) else -1 for k,v in experimental_chemical_shifts2.items()},
                                                 {k:v if not np.isnan(v) else -1 for k,v in random_coil_chemical_shifts.items()},         # -1 to indicate where data is not provided for a chemical shift, and that it should be ignored by the restraints
-                                                experimental_chemical_shift_factors,
+                                                experimental_chemical_shift_factors1,
                                                 int(residue.id),
                                                 chain.id)
                     

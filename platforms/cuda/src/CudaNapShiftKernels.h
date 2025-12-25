@@ -107,7 +107,8 @@ private:
     torch::Tensor ChemShiftScale;
     torch::Tensor RMSD; 
     torch::Tensor randomCoilTensor;
-    torch::Tensor CSExpTensor;
+    torch::Tensor CSExpTensor1;
+    torch::Tensor CSExpTensor2;
     torch::Tensor csTensor;
     torch::Tensor NapShiftForceVector; //vector of all forces resulting from NapShift prediction
 
@@ -209,19 +210,22 @@ private:
 class CudaCalcNapShiftForceKernel::BasePeptide {
     public:
         char resType;
-        std::map<std::string, double> csExp;
+        std::map<std::string, double> csExp1;
+        std::map<std::string, double> csExp2;
         std::map<std::string, double> csRC;
         std::map<std::string, double> csScale;
         int resId;
         std::string chainId;
         BasePeptide(char resType,
-                std::map<std::string,double> csExp,
+                std::map<std::string,double> csExp1,
+                std::map<std::string,double> csExp2,
                 std::map<std::string, double> csRC,
                 std::map<std::string, double> csScale,
                 int resId, 
                 std::string chainId) {
             this->resType = resType;
-            this->csExp = csExp;
+            this->csExp1 = csExp1;
+            this->csExp2 = csExp2;
             this->csRC = csRC;
             this->csScale = csScale;
             this->resId = resId;
@@ -243,11 +247,12 @@ class CudaCalcNapShiftForceKernel::Peptide : public CudaCalcNapShiftForceKernel:
         Peptide(int bbIndex,
                 int scIndex,
                 char resType,
-                std::map<std::string, double> csExp,
+                std::map<std::string, double> csExp1,
+                std::map<std::string, double> csExp2,
                 std::map<std::string, double> csRC,
                 std::map<std::string, double> csScale,
                 int resId, 
-                std::string chainId) : BasePeptide(resType, csExp, csRC, csScale, resId, chainId) {
+                std::string chainId) : BasePeptide(resType, csExp1, csExp2, csRC, csScale, resId, chainId) {
             this->bbIndex = bbIndex;
             this->scIndex = scIndex;
         }
@@ -272,11 +277,12 @@ class CudaCalcNapShiftForceKernel::AllAtomPeptide : public CudaCalcNapShiftForce
                 int G_index,
                 int D_index,
                 char resType,
-                std::map<std::string, double> csExp,
+                std::map<std::string, double> csExp1,
+                std::map<std::string, double> csExp2,
                 std::map<std::string, double> csRC,
                 std::map<std::string, double> csScale,
                 int resId, 
-                std::string chainId) : BasePeptide(resType, csExp, csRC, csScale, resId, chainId) {
+                std::string chainId) : BasePeptide(resType, csExp1, csExp2, csRC, csScale, resId, chainId) {
             this->N_index = N_index;
             this->C_index = C_index;
             this->CA_index = CA_index;
