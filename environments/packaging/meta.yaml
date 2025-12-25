@@ -7,7 +7,7 @@ package:
 
 source:
   git_url: https://github.com/mercadde/openmm-napshift.git
-  git_rev: v{{ version }}
+  git_rev: v{{ version }}-dual-well
 build:
   number: 0
 

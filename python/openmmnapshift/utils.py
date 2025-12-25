@@ -152,9 +152,9 @@ def get_restricted_bending_force(top, resids_for_ReB=None):
     restrict_angle_force.addGlobalParameter("ReB_K", 0)
     for chain in top.chains():
         if resids_for_ReB is not None:
-            CA_atoms = [atom for atom in chain.atoms() if atom.name == "CA"]
-        else:
             CA_atoms = [atom for atom in chain.atoms() if atom.name == "CA" and atom.residue.id in resids_for_ReB]
+        else:
+            CA_atoms = [atom for atom in chain.atoms() if atom.name == "CA"]
             
         for i in range(len(chain)-2):
             restrict_angle_force.addAngle(CA_atoms[i].index, CA_atoms[i+1].index, CA_atoms[i+2].index)
