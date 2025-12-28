@@ -4,6 +4,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+    - cpython 3.11.14 py311hd8ed1ab_2
     - cuda-crt-tools 12.9.86 ha770c72_2
     - cuda-cudart 12.9.79 h5888daf_0
     - cuda-cudart_linux-64 12.9.79 h3f2d84a_0
@@ -14,12 +15,14 @@ dependencies:
     - cuda-nvrtc 12.9.86 hecca717_1
     - cuda-nvtx 12.9.79 hecca717_1
     - cuda-nvvm-tools 12.9.86 h4bc722e_2
-    - cuda-toolkit
     - cuda-version 12.9 h4f385c5_3
     - cudnn 9.10.2.21 hbcb9cd8_0
+    - numpy 2.3.5 
     - openmm 8.4.0 py311he07d46e_1
-    - pip 
-    - python 3.11.14 
+    - pip 25.3 
+    - python 3.11.14 hd63d673_2_cpython
+    - python_abi 3.11 8_cp311
     - pytorch 2.9.1 cuda129_mkl_py311_hcbd18c7_301
-    - setuptools 
     - swig 
+    - setuptools
+    - cuda-toolkit
