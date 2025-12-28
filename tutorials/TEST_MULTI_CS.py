@@ -107,7 +107,7 @@ system.addForce(ah)
 system.addForce(yu)
 
 
-napshift_force = get_napshift_force(top, 'Data/1DJF/CS.txt', 'Data/1DJF/CS.txt', model_type='CA')
+napshift_force = get_napshift_force(top, 'Data/1DJF/CS.txt', 'Data/1DJF/RC_CS.txt', model_type='CA')
 napshift_force.setUsesPeriodicBoundaryConditions(True)
 system.addForce(napshift_force)
 

@@ -465,7 +465,7 @@ static void executeGraph(bool includeForces,
     r2 = torch::where(torch::abs(r2) < modelErrors, 0.0, torch::abs(r2) - modelErrors); //apply flatbottom
     r2 = torch::sqrt(torch::sum(torch::square(r2)));
     
-    energyTensor = -K*torch::log(torch::exp(-torch::square(r1)/(2)) + torch::exp(-torch::square(r2)/(2)));
+    energyTensor = -K*torch::log(torch::exp(-torch::square(r1)/(2000)) + torch::exp(-torch::square(r2)/(2000)));
 
     dNN_dAngle = torch::autograd::grad({energyTensor}, {inputTensor})[0].detach();
     relevant_dNN_dAngle = torch::cat({torch::narrow(dNN_dAngle, 1, 22, 2*numInputAngles), torch::narrow(dNN_dAngle, 1, 44+2*numInputAngles, 2*numInputAngles), torch::narrow(dNN_dAngle, 1, 66+4*numInputAngles, 2*numInputAngles)}, 1).reshape({numPeptides, 3*2*numInputAngles, 1, 1}).repeat({1, 1, 4, 3});
