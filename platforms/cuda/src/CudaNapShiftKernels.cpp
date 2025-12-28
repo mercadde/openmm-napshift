@@ -498,6 +498,11 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
     sigma1 += context.getParameter("NapShift_sigma1");
     sigma2 += context.getParameter("NapShift_sigma2");
 
+    std::cout << "K1: " << K1 << std::endl;
+    std::cout << "K2: " << K2 << std::endl;
+    std::cout << "sigma1: " << sigma1 << std::endl;
+    std::cout << "sigma2: " << sigma2 << std::endl;
+
     vector<torch::jit::IValue> inputs;
     inputs = {inputTensor};
 
@@ -610,8 +615,11 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
         graphs[includeForces].replay();   
     }
 
+    std::cout << "energy: " << energyTensor << std::endl;
+
     if (includeForces) {
         if (context.getParameter("NapShift_K1") > 0 || context.getParameter("NapShift_K2") > 0){
+            std::cout << "accumulateParticleForces" << std::endl;
             accumulateParticleForces();
         }
     }

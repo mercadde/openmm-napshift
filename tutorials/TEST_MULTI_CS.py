@@ -107,7 +107,7 @@ system.addForce(ah)
 system.addForce(yu)
 
 
-napshift_force = get_napshift_force(top, 'Data/1DJF/CS.txt', 'Data/1DJF/RC_CS.txt', model_type='CA')
+napshift_force = get_napshift_force(top, 'Data/1DJF/CS.txt', 'Data/1DJF/CS.txt', model_type='CA')
 napshift_force.setUsesPeriodicBoundaryConditions(True)
 system.addForce(napshift_force)
 
@@ -135,8 +135,13 @@ print(f"Warming up CS restraints for {len(range(warmup_steps))} steps")
 #    simulation.step(1)
 #    simulation.context.setParameter('NapShift_K', (i*K_gradient))
 #    simulation.context.setParameter('ReB_K', (i*(1/warmup_steps)))
-simulation.context.setParameter('NapShift_K', (max_K))
+simulation.context.setParameter('NapShift_K1', (25))
+simulation.context.setParameter('NapShift_K2', (0))
+simulation.context.setParameter('NapShift_sigma1', (3))
+simulation.context.setParameter('NapShift_sigma2', (3))
 simulation.context.setParameter('ReB_K', 1)   
+
+print(simulation.context.getParameter('NapShift_K2'))
 
 print(f"Simulating with CS restraints")
 simulation.step(100000000) #1us
