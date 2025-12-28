@@ -70,7 +70,10 @@ NapShiftForce::NapShiftForce(const map<string, string>& properties) : usePeriodi
         this->properties[property.first] = property.second;
     }
     modelType = "martini";
-    K = 0.0;
+    K1 = 0.0;
+    K2 = 0.0;
+    sigma1 = 1.0;
+    sigma2 = 1.0;
     avgCS = {};
     useEnsembleAveraging = false;
     pytorchModelsDir = GetExecutableDir() + "/site-packages/openmmnapshift/PytorchModels";
@@ -181,12 +184,36 @@ std::string NapShiftForce::getModelType() const {
     return modelType;
 }
 
-double NapShiftForce::getKDefaultValue() const {
-    return K;
+double NapShiftForce::getK1DefaultValue() const {
+    return K1;
 }
 
-void NapShiftForce::setKDefaultValue(double defaultK) {
-    K = defaultK;
+void NapShiftForce::setK1DefaultValue(double defaultK1) {
+    K1 = defaultK1;
+}
+
+double NapShiftForce::getK2DefaultValue() const {
+    return K2;
+}
+
+void NapShiftForce::setK2DefaultValue(double defaultK2) {
+    K2 = defaultK2;
+}
+
+double NapShiftForce::getSigma1DefaultValue() const {
+    return sigma1;
+}
+
+void NapShiftForce::setSigma1DefaultValue(double defaultSigma1) {
+    sigma1 = defaultSigma1;
+}
+
+double NapShiftForce::getSigma2DefaultValue() const {
+    return sigma2;
+}
+
+void NapShiftForce::setSigma2DefaultValue(double defaultSigma2) {
+    sigma2 = defaultSigma2;
 }
 
 std::string NapShiftForce::getPytorchModelsDir() const {

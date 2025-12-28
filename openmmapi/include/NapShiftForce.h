@@ -74,8 +74,14 @@ public:
     /**
      * Get the default value of K, the CS-restraint force constant.
      */
-    double getKDefaultValue() const;
-    void setKDefaultValue(double defaultK);
+    double getK1DefaultValue() const;
+    void setK1DefaultValue(double defaultK1);
+    double getK2DefaultValue() const;
+    void setK2DefaultValue(double defaultK2);
+    double getSigma1DefaultValue() const;
+    void setSigma1DefaultValue(double defaultSigma1);
+    double getSigma2DefaultValue() const;
+    void setSigma2DefaultValue(double defaultSigma2);
     /**
      * Get the directory to source the ANN model from.
      */
@@ -102,7 +108,7 @@ private:
 
     std::vector<std::unique_ptr<BasePeptide>> peptides; //TODO: serialization..?
 
-    double K;
+    double K1, K2, sigma1, sigma2;
     std::vector<double> avgCS;
     std::vector<double> thisCS;
 

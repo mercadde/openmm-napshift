@@ -62,7 +62,10 @@ double NapShiftForceImpl::calcForcesAndEnergy(ContextImpl& context, bool include
 
 map<string, double> NapShiftForceImpl::getDefaultParameters() {
     map<string, double> parameters;
-    parameters["NapShift_K"] = owner.getKDefaultValue();
+    parameters["NapShift_K1"] = owner.getK1DefaultValue();
+    parameters["NapShift_K2"] = owner.getK2DefaultValue();
+    parameters["NapShift_sigma1"] = owner.getSigma1DefaultValue();
+    parameters["NapShift_sigma2"] = owner.getSigma2DefaultValue();
     
     if (owner.usesEnsembleAveraging()) {
         for (int i=0; i<owner.getNumPeptides(); i++) {

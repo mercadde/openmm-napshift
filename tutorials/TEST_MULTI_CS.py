@@ -75,7 +75,7 @@ def get_ReB(top, resids_for_ReB=None):
             restrict_angle_force.addAngle(CA_atoms[i].index, CA_atoms[i+1].index, CA_atoms[i+2].index)
     return restrict_angle_force
 
-max_K = 25
+max_K = 500
 K_gradient = 0.01
 report_interval = 1000
 temperature = 298*unit.kelvin
@@ -131,11 +131,12 @@ simulation.reporters.append(state_data_reporter_file)
 
 warmup_steps = int(np.floor(max_K/K_gradient))
 print(f"Warming up CS restraints for {len(range(warmup_steps))} steps")
-for i in range(warmup_steps):
-    simulation.step(1)
-    simulation.context.setParameter('NapShift_K', (i*K_gradient))
-    simulation.context.setParameter('ReB_K', (i*(1/warmup_steps)))
+#for i in range(warmup_steps):
+#    simulation.step(1)
+#    simulation.context.setParameter('NapShift_K', (i*K_gradient))
+#    simulation.context.setParameter('ReB_K', (i*(1/warmup_steps)))
+simulation.context.setParameter('NapShift_K', (max_K))
 simulation.context.setParameter('ReB_K', 1)   
 
 print(f"Simulating with CS restraints")
-simulation.step(100000)
+simulation.step(100000000) #1us

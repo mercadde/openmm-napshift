@@ -173,7 +173,10 @@ void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShif
 
     modelErrors = modelErrors.to(device);
     ChemShiftSTD = ChemShiftSTD.to(device);
-    K = torch::zeros({1}, realOptionsDevice);
+    K1 = torch::zeros({1}, realOptionsDevice);
+    K2 = torch::zeros({1}, realOptionsDevice);
+    sigma1 = torch::zeros({1}, realOptionsDevice);
+    sigma2 = torch::zeros({1}, realOptionsDevice);
     RMSD = torch::empty({6}, realOptionsDevice);
     csTensor = torch::empty({numPeptides, numAtomTypes}, realOptionsDevice);
     randomCoilTensor = torch::empty({numPeptides, numAtomTypes}, realOptionsCPU);
@@ -447,7 +450,10 @@ static void executeGraph(bool includeForces,
                          int& numPeptides,
                          int& numNapShiftParticles,
                          int& numInputAngles,
-                         torch::Tensor& K,
+                         torch::Tensor& K1,
+                         torch::Tensor& K2,
+                         torch::Tensor& sigma1,
+                         torch::Tensor& sigma2,
                          torch::Tensor& csTensor,
                          torch::Tensor& energyTensor,
                          torch::Tensor& dNN_dAngle,
@@ -465,7 +471,7 @@ static void executeGraph(bool includeForces,
     r2 = torch::where(torch::abs(r2) < modelErrors, 0.0, torch::abs(r2) - modelErrors); //apply flatbottom
     r2 = torch::sqrt(torch::sum(torch::square(r2)));
     
-    energyTensor = -K*torch::log(torch::exp(-torch::square(r1)/(2000)) + torch::exp(-torch::square(r2)/(2000)));
+    energyTensor = -torch::log(K1*torch::exp(-torch::square(r1)/sigma1) + K2*torch::exp(-torch::square(r2)/sigma2));
 
     dNN_dAngle = torch::autograd::grad({energyTensor}, {inputTensor})[0].detach();
     relevant_dNN_dAngle = torch::cat({torch::narrow(dNN_dAngle, 1, 22, 2*numInputAngles), torch::narrow(dNN_dAngle, 1, 44+2*numInputAngles, 2*numInputAngles), torch::narrow(dNN_dAngle, 1, 66+4*numInputAngles, 2*numInputAngles)}, 1).reshape({numPeptides, 3*2*numInputAngles, 1, 1}).repeat({1, 1, 4, 3});
@@ -483,8 +489,14 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
 
     prepareNapShiftInputs(context);
 
-    K.zero_();
-    K += context.getParameter("NapShift_K");
+    K1.zero_();
+    K2.zero_();
+    sigma1.zero_();
+    sigma2.zero_();
+    K1 += context.getParameter("NapShift_K1");
+    K2 += context.getParameter("NapShift_K1");
+    sigma1 += context.getParameter("NapShift_sigma1");
+    sigma2 += context.getParameter("NapShift_sigma2");
 
     vector<torch::jit::IValue> inputs;
     inputs = {inputTensor};
@@ -505,7 +517,10 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
                 numPeptides,
                 numNapShiftParticles,
                 numInputAngles,
-                K,
+                K1,
+                K2,
+                sigma1,
+                sigma2,
                 csTensor,
                 energyTensor,
                 dNN_dAngle,
@@ -540,7 +555,10 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
                         numPeptides,
                         numNapShiftParticles,
                         numInputAngles,
-                        K,
+                        K1,
+                        K2,
+                        sigma1,
+                        sigma2,
                         csTensor,
                         energyTensor,
                         dNN_dAngle,
@@ -566,7 +584,10 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
                     numPeptides,
                     numNapShiftParticles,
                     numInputAngles,
-                    K,
+                    K1,
+                    K2,
+                    sigma1,
+                    sigma2,
                     csTensor,
                     energyTensor,
                     dNN_dAngle,
@@ -590,7 +611,7 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
     }
 
     if (includeForces) {
-        if (context.getParameter("NapShift_K") > 0){
+        if (context.getParameter("NapShift_K1") > 0 || context.getParameter("NapShift_K2") > 0){
             accumulateParticleForces();
         }
     }

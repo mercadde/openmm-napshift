@@ -95,8 +95,14 @@ public:
     const std::map<std::string, std::string>& getProperties() const;
     void setModelType(std::string modelType);
     std::string getModelType() const;
-    double getKDefaultValue() const;
-    void setKDefaultValue(double defaultK);
+    double getK1DefaultValue() const;
+    void setK1DefaultValue(double defaultK1);
+    double getK2DefaultValue() const;
+    void setK2DefaultValue(double defaultK2);
+    double getSigma1DefaultValue() const;
+    void setSigma1DefaultValue(double defaultSigma1);
+    double getSigma2DefaultValue() const;
+    void setSigma2DefaultValue(double defaultSigma2);
     std::string getPytorchModelsDir() const;
     void setPytorchModelsDir(std::string pytorchModelsDir);
     /*

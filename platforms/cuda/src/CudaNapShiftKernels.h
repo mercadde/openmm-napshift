@@ -100,7 +100,10 @@ private:
     OpenMM::CudaArray particleForceIndicesArray; //for each particle, stores the indices of forces in particleForceVector which should be summed to give the total force on that particle
 
     torch::jit::script::Module model;
-    at::Tensor K;
+    at::Tensor K1;
+    at::Tensor K2;
+    at::Tensor sigma1;
+    at::Tensor sigma2;
 
     torch::Tensor modelErrors;
     torch::Tensor ChemShiftSTD;
