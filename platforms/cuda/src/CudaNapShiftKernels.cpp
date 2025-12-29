@@ -463,12 +463,12 @@ static void executeGraph(bool includeForces,
     csTensor = predictionModel.forward(inputs).toTensor();
     torch::Tensor r1 = CSExpTensor1 - (csTensor + randomCoilTensor);
     r1 = torch::where((CSExpTensor1 == -1) | (randomCoilTensor == -1), 0.0, r1); //dealing with undefined inputs
-    r1 = torch::where(torch::abs(r1) < modelErrors, 0.0, torch::abs(r1) - modelErrors); //apply flatbottom
+    //r1 = torch::where(torch::abs(r1) < modelErrors, 0.0, torch::abs(r1) - modelErrors); //apply flatbottom
     r1 = torch::sqrt(torch::sum(torch::square(r1)));
 
     torch::Tensor r2 = CSExpTensor2 - (csTensor + randomCoilTensor);
     r2 = torch::where((CSExpTensor2 == -1) | (randomCoilTensor == -1), 0.0, r2); //dealing with undefined inputs
-    r2 = torch::where(torch::abs(r2) < modelErrors, 0.0, torch::abs(r2) - modelErrors); //apply flatbottom
+    //r2 = torch::where(torch::abs(r2) < modelErrors, 0.0, torch::abs(r2) - modelErrors); //apply flatbottom
     r2 = torch::sqrt(torch::sum(torch::square(r2)));
     
     energyTensor = -torch::log(K1*torch::exp(-torch::square(r1)/sigma1) + K2*torch::exp(-torch::square(r2)/sigma2));
@@ -494,14 +494,14 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
     sigma1.zero_();
     sigma2.zero_();
     K1 += context.getParameter("NapShift_K1");
-    K2 += context.getParameter("NapShift_K1");
+    K2 += context.getParameter("NapShift_K2");
     sigma1 += context.getParameter("NapShift_sigma1");
     sigma2 += context.getParameter("NapShift_sigma2");
 
-    std::cout << "K1: " << K1 << std::endl;
-    std::cout << "K2: " << K2 << std::endl;
-    std::cout << "sigma1: " << sigma1 << std::endl;
-    std::cout << "sigma2: " << sigma2 << std::endl;
+    //std::cout << "K1: " << K1 << std::endl;
+    //std::cout << "K2: " << K2 << std::endl;
+    //std::cout << "sigma1: " << sigma1 << std::endl;
+    //std::cout << "sigma2: " << sigma2 << std::endl;
 
     vector<torch::jit::IValue> inputs;
     inputs = {inputTensor};
@@ -615,11 +615,11 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
         graphs[includeForces].replay();   
     }
 
-    std::cout << "energy: " << energyTensor << std::endl;
+    //std::cout << "energy: " << energyTensor << std::endl;
 
     if (includeForces) {
         if (context.getParameter("NapShift_K1") > 0 || context.getParameter("NapShift_K2") > 0){
-            std::cout << "accumulateParticleForces" << std::endl;
+            //std::cout << "accumulateParticleForces" << std::endl;
             accumulateParticleForces();
         }
     }
