@@ -5,7 +5,9 @@ import numpy as np
 import pandas as pd
 import sys
 
-from openmmnapshift.utils import get_napshift_force, get_restricted_bending_force
+from openmmnapshift.utils import get_restricted_bending_force, read_chemical_shifts, RESIDUE_TYPES, CHI1_ATOMS, CHI2_ATOMS, ATOM_TYPES
+from openmmnapshift.napshiftforce import NapShiftForce
+from pycamcoil.camcoil_engine import CamCoil
 
 def genParamsDH(temp,ionic):
     """ Debye-Huckel parameters. """
@@ -107,6 +109,71 @@ system.addForce(ah)
 system.addForce(yu)
 
 
+def get_napshift_force(top, chemical_shifts_file1, chemical_shifts_file2, model_type):
+    chemical_shifts_data1 = read_chemical_shifts(chemical_shifts_file1)
+    chemical_shifts_data2 = read_chemical_shifts(chemical_shifts_file2)
+    napshiftforce = NapShiftForce()
+    camcoil = CamCoil()
+
+    for chain in top.chains():
+        # check if this is a protein chain
+        if all([residue.name in RESIDUE_TYPES.keys() for residue in chain.residues()]):
+            # get protein sequence for this chain, updating CYO and PRC residues according to the chemical shift input file 
+            sequence = []
+            for residue in chain.residues():
+                topology_restype = RESIDUE_TYPES[residue.name]
+                if (residue.id,chain.id) in chemical_shifts_data1.keys():
+                    (restype,_,_) = chemical_shifts_data1[(residue.id,chain.id)]
+                    if restype == 'X' and topology_restype == 'C': topology_restype = 'X' # the chemical shift file indicates that this CYS residue should be CYO
+                    if restype == 'O' and topology_restype == 'P': topology_restype = 'O' # the chemical shift file indicates that this PRO residue should be PRC
+                    assert restype == topology_restype 
+                sequence.append(topology_restype)
+            sequence = ''.join(sequence)
+            #predict random coil chemical shifts from this sequence
+            camcoil_predictions = camcoil.predict(''.join(sequence))
+
+            for i, residue in enumerate(chain.residues()):
+                if residue.name not in RESIDUE_TYPES.keys():continue
+                if (residue.id,chain.id) in chemical_shifts_data1.keys():
+                    restype = sequence[i] # take the residue type from the sequence variable instead of from residue.name, since we may want CYO or PRC instead
+                    random_coil_chemical_shifts = {atom: camcoil_predictions.iloc[i][atom] for atom in ATOM_TYPES}
+                    experimental_chemical_shifts1 = chemical_shifts_data1[(residue.id,chain.id)][1]
+                    experimental_chemical_shift_factors1 = chemical_shifts_data1[(residue.id,chain.id)][2]
+                    experimental_chemical_shifts2 = chemical_shifts_data2[(residue.id,chain.id)][1]
+
+                    #get indices of the particles relevant to NapShift for this residue
+                    peptide_particle_indices = [-1,-1]
+                    if model_type == 'martini':
+                        bb_index = int([a.index for a in residue.atoms() if a.name == 'BB'][0])
+                        sc_index = int([a.index for a in residue.atoms() if a.name == 'SC1'][0]) if 'SC1' in [a.name for a in residue.atoms()] else -1
+                        peptide_particle_indices = [bb_index,sc_index]
+                    elif model_type == 'CA':
+                        bb_index = int([a.index for a in residue.atoms() if a.name == 'CA'][0])
+                        peptide_particle_indices = [bb_index,-1]
+                    elif model_type == 'all_atom':
+                        N_index = [int(a.index) for a in residue.atoms() if a.name == "N"][0]
+                        C_index = [int(a.index) for a in residue.atoms() if a.name == "C"][0]
+                        CA_index =[int(a.index) for a in residue.atoms() if a.name == "CA"][0]
+                        CB_index =[int(a.index) for a in residue.atoms() if a.name == "CB"][0]
+                        G_index = [int(a.index) for a in residue.atoms() if a.name == CHI1_ATOMS[residue.name][-1]][0] if residue.name in CHI1_ATOMS.keys() else -1
+                        D_index = [int(a.index) for a in residue.atoms() if a.name == CHI2_ATOMS[residue.name][-1]][0] if residue.name in CHI2_ATOMS.keys() else -1
+                        peptide_particle_indices = [N_index,C_index,CA_index,CB_index,G_index,D_index]
+                    else:
+                        raise NotImplementedError(f"model type {model_type} not implemented")
+                    
+                    napshiftforce.addPeptide(*peptide_particle_indices,restype,
+                                                {k:v if not np.isnan(v) else -1 for k,v in experimental_chemical_shifts1.items()}, # -1 to indicate where data is not provided for a chemical shift, and that it should be ignored by the restraints
+                                                {k:v if not np.isnan(v) else -1 for k,v in experimental_chemical_shifts2.items()},
+                                                {k:v if not np.isnan(v) else -1 for k,v in random_coil_chemical_shifts.items()},         # -1 to indicate where data is not provided for a chemical shift, and that it should be ignored by the restraints
+                                                experimental_chemical_shift_factors1,
+                                                int(residue.id),
+                                                chain.id)
+                    print({k:v if not np.isnan(v) else -1 for k,v in experimental_chemical_shifts1.items()})
+                    print({k:v if not np.isnan(v) else -1 for k,v in experimental_chemical_shifts2.items()})
+                    print()
+    napshiftforce.setModelType(model_type)
+    return napshiftforce
+
 napshift_force = get_napshift_force(top, 'Data/1DJF/CS.txt', 'Data/1DJF/CS.txt', model_type='CA')
 napshift_force.setUsesPeriodicBoundaryConditions(True)
 system.addForce(napshift_force)
@@ -137,8 +204,8 @@ print(f"Warming up CS restraints for {len(range(warmup_steps))} steps")
 #    simulation.context.setParameter('ReB_K', (i*(1/warmup_steps)))
 simulation.context.setParameter('NapShift_K1', (25))
 simulation.context.setParameter('NapShift_K2', (0))
-simulation.context.setParameter('NapShift_sigma1', (3))
-simulation.context.setParameter('NapShift_sigma2', (3))
+simulation.context.setParameter('NapShift_sigma1', (1000))
+simulation.context.setParameter('NapShift_sigma2', (1000))
 simulation.context.setParameter('ReB_K', 1)   
 
 print(simulation.context.getParameter('NapShift_K2'))

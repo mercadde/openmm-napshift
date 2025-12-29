@@ -616,7 +616,7 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
     }
 
     //std::cout << "energy: " << energyTensor << std::endl;
-
+    std::cout "forces: " << NapShiftForceVector << std::endl;
     if (includeForces) {
         if (context.getParameter("NapShift_K1") > 0 || context.getParameter("NapShift_K2") > 0){
             //std::cout << "accumulateParticleForces" << std::endl;
