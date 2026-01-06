@@ -13,7 +13,7 @@ cd environments
 # conda environment containing all dependencies required to run the tutorials in this project
 conda env create -f run.yml 
 conda activate OpenMMNapShift
-conda install openmmnapshift-1.0.0-py_0.conda
+conda install openmmnapshift-1.0.0-py311hfe2ebbc_0.conda
  # additional dependency not yet published to conda-forge, required to compute random coil chemical shifts 
 conda install pycamcoil-1.0.0-py_0.conda
 ```
@@ -65,6 +65,7 @@ CS restraints can be applied to atomistic-resolution simulations, simulations wi
 - [Running all-atomistic simulations with Chemical Shift restraints](tutorials/all_atom_tutorial.ipynb)
 - [Running Martini3 simulations with Chemical Shift restraints](tutorials/martini_tutorial.ipynb)
 - [Running dramatically coarse-grained (e.g. CALVADOS) simulations with Chemical Shift restraints](tutorials/CA_tutorial.ipynb)
+
 
 
 
