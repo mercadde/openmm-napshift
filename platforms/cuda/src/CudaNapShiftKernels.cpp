@@ -215,7 +215,7 @@ void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShif
               peptides.end(),
               [](const std::unique_ptr<BasePeptide>& lhs, const std::unique_ptr<BasePeptide>& rhs)
               {
-                  if ( lhs->getChainId() > rhs->getChainId() ) return false; 
+                  if (lhs->getChainId() != rhs->getChainId()) return lhs->getChainId() < rhs->getChainId();
                   return lhs->getResId() < rhs->getResId();
               });
     //now grow the list of particles from the correctly ordered NapShift peptide list

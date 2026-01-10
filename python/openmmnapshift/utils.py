@@ -140,7 +140,8 @@ def get_napshift_force(top, chemical_shifts_file, model_type):
                                                 experimental_chemical_shift_factors,
                                                 int(residue.id),
                                                 chain.id)
-                    
+
+                                        
     napshiftforce.setModelType(model_type)
     return napshiftforce
 

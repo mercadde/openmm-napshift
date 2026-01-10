@@ -2,3 +2,5 @@ build/
 _packaging/
 
 *.xtc
+tutorials/Data/1DH3_APO/*
+tutorials/sim_martini.py
