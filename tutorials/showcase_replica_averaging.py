@@ -4,6 +4,7 @@ from openmm import app, unit
 import numpy as np
 import pandas as pd
 import sys
+import argparse
 
 from openmmnapshift.utils import get_napshift_force, get_restricted_bending_force, ATOM_TYPES
 
@@ -74,6 +75,10 @@ def update_avg_CS(reps, num_NapShift_peptides):
             for rep in reps:       
                 rep.context.setParameter(f'NapShift_AvgCSDifference{i}{atom}', avgCSData[i][a])
 
+parser = argparse.ArgumentParser(prog='RunNapShift')
+parser.add_argument('--CS_filename', default="CS.txt")
+args = parser.parse_args()
+
 max_K = 25
 K_gradient = 0.01
 num_reps = 2
@@ -112,7 +117,7 @@ for i, j in exclusions_1_2:
 system.addForce(ah)
 system.addForce(yu)
 
-napshift_force = get_napshift_force(top, 'Data/8K6Z/combined_CS.txt', model_type='CA')
+napshift_force = get_napshift_force(top, f'Data/8K6Z/{args.CS_filename}', model_type='CA')
 napshift_force.setUsesPeriodicBoundaryConditions(True)
 napshift_force.setUsesEnsembleAveraging(True)
 system.addForce(napshift_force)
