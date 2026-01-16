@@ -453,11 +453,14 @@ static void executeGraph(bool includeForces,
 
     csTensor = predictionModel.forward(inputs).toTensor();
     csDifference = CSExpTensor - (csTensor + randomCoilTensor);
-    csDifference = torch::where((CSExpTensor == -1) | (randomCoilTensor == -1), 0.0, csDifference); //dealing with undefined inputs
-    csDifference = torch::where(torch::abs(csDifference) < modelErrors, 0.0, torch::abs(csDifference) - modelErrors); //apply flatbottom
+    //dealing with undefined inputs
+    csDifference = torch::where((CSExpTensor == -1) | (randomCoilTensor == -1), 0.0, csDifference); 
+    //apply flatbottom
+    csDifference = torch::where(torch::abs(csDifference) < modelErrors, 0.0, torch::abs(csDifference) - modelErrors); 
     energyTensor = K*torch::sum(ChemShiftScale*torch::square(csDifference)); 
 
     dNN_dAngle = torch::autograd::grad({energyTensor}, {inputTensor})[0].detach();
+    //extract derivatives relating only to angles
     relevant_dNN_dAngle = torch::cat({torch::narrow(dNN_dAngle, 1, 22, 2*numInputAngles), torch::narrow(dNN_dAngle, 1, 44+2*numInputAngles, 2*numInputAngles), torch::narrow(dNN_dAngle, 1, 66+4*numInputAngles, 2*numInputAngles)}, 1).reshape({numPeptides, 3*2*numInputAngles, 1, 1}).repeat({1, 1, 4, 3});
 
     NapShiftForceVector += relevant_dNN_dAngle.view({-1, 3}).clone();
