@@ -21,7 +21,7 @@ conda install pycamcoil-1.0.0-py_0.conda
 ## Building from source
 1. Install dependencies:
    
-   This project depends on the OpenMM and LibTorch libraries. A CUDA compiler is also required. OpenMM is available via conda, and instructions for LibToch installation can be found at https://pytorch.org. Alternatively, an environment file containing all required dependencies to build OpenMMNapShift can be found at [environments/build.yml](environments/build.yml):
+   This project depends on the OpenMM and LibTorch libraries. A CUDA compiler is also required. OpenMM is available via conda, and instructions for LibTorch installation can be found at https://pytorch.org. Alternatively, an environment file containing all required dependencies to build OpenMMNapShift can be found at [environments/build.yml](environments/build.yml):
    ```
    cd environments
    conda env create -f build.yml
