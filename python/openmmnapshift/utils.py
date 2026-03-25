@@ -1,6 +1,8 @@
 import openmm
 import numpy as np
 import pynmrstar
+from itertools import groupby
+import warnings
 
 from openmmnapshift.napshiftforce import NapShiftForce
 from pycamcoil.camcoil_engine import CamCoil
@@ -91,26 +93,42 @@ def get_napshift_force(top, chemical_shifts_file, model_type):
 
     for chain in top.chains():
         # check if this is a protein chain
-        if all([residue.name in RESIDUE_TYPES.keys() for residue in chain.residues()]):
+        if any([residue.name in RESIDUE_TYPES.keys() for residue in chain.residues()]):
             # get protein sequence for this chain, updating CYO and PRC residues according to the chemical shift input file 
             sequence = []
             for residue in chain.residues():
-                topology_restype = RESIDUE_TYPES[residue.name]
-                if (residue.id,chain.id) in chemical_shifts_data.keys():
-                    (restype,_,_) = chemical_shifts_data[(residue.id,chain.id)]
-                    if restype == 'X' and topology_restype == 'C': topology_restype = 'X' # the chemical shift file indicates that this CYS residue should be CYO
-                    if restype == 'O' and topology_restype == 'P': topology_restype = 'O' # the chemical shift file indicates that this PRO residue should be PRC
-                    assert restype == topology_restype 
-                sequence.append(topology_restype)
-            sequence = ''.join(sequence)
-            #predict random coil chemical shifts from this sequence
-            camcoil_predictions = camcoil.predict(''.join(sequence))
+                if residue.name in RESIDUE_TYPES.keys(): # is this residue recognized by NapShift?
+                    topology_restype = RESIDUE_TYPES[residue.name]
+                    if (residue.id,chain.id) in chemical_shifts_data.keys():
+                        (restype,_,_) = chemical_shifts_data[(residue.id,chain.id)]
+                        if restype == 'X' and topology_restype == 'C': topology_restype = 'X' # the chemical shift file indicates that this CYS residue should be CYO
+                        if restype == 'O' and topology_restype == 'P': topology_restype = 'O' # the chemical shift file indicates that this PRO residue should be PRC
+                        assert restype == topology_restype 
+                    sequence.append(topology_restype)
+                else: # if not recognised, treat this as a non-standard residue
+                    sequence.append('-')
 
+            # CamCoil can't predict on unsupported amino acid types ('-' character), so separate these out first
+            # split sequence into blocks of supported amino acids
+            sequence_blocks = [''.join(g) for _, g in groupby(sequence, key=lambda x: x=='-')]
+            if any([ '-' in block for block in sequence_blocks[1:-1]]):
+                warnings.warn("Warning: unsupported amino-acid type detected within protein seqence. Protein seqnece will be split into blocks of continuous stretches of standard amino acids and CamCoil Random Coil Chemical Shift prediction will be carried out only on these blocks. ")
+            # run camcoil only on the continuous stretches of supported amino acids
+            camcoil_predictions = []
+            for block in sequence_blocks:
+                if '-' in block: # skip this block
+                    camcoil_predictions += [{'CA' : np.nan, 'CB' : np.nan, 'C' : np.nan, 'H' : np.nan, 'HA' : np.nan, 'N' : np.nan} for aa in block]
+                else: # get CamCoil predictions on this continuous stretch of supported amino-acids
+                    camcoil_prediction = camcoil.predict(block).to_dict(orient='records')
+                    camcoil_predictions += [{atom: residue_prediction[atom] for atom in ATOM_TYPES} for residue_prediction in camcoil_prediction ]
+            # make sure that there is a camcoil entry for every residue in this chain (even non-standard amino acids)
+            assert len(camcoil_predictions) == len([r for r in chain.residues()])
+                    
             for i, residue in enumerate(chain.residues()):
                 if residue.name not in RESIDUE_TYPES.keys():continue
                 if (residue.id,chain.id) in chemical_shifts_data.keys():
                     restype = sequence[i] # take the residue type from the sequence variable instead of from residue.name, since we may want CYO or PRC instead
-                    random_coil_chemical_shifts = {atom: camcoil_predictions.iloc[i][atom] for atom in ATOM_TYPES}
+                    random_coil_chemical_shifts = {atom: camcoil_predictions[i][atom] for atom in ATOM_TYPES}
                     experimental_chemical_shifts = chemical_shifts_data[(residue.id,chain.id)][1]
                     experimental_chemical_shift_factors = chemical_shifts_data[(residue.id,chain.id)][2]
 
@@ -127,24 +145,22 @@ def get_napshift_force(top, chemical_shifts_file, model_type):
                         N_index = [int(a.index) for a in residue.atoms() if a.name == "N"][0]
                         C_index = [int(a.index) for a in residue.atoms() if a.name == "C"][0]
                         CA_index =[int(a.index) for a in residue.atoms() if a.name == "CA"][0]
-                        CB_index =[int(a.index) for a in residue.atoms() if a.name == "CB"][0]
+                        CB_index =[int(a.index) for a in residue.atoms() if a.name == "CB"][0] if residue.name != "GLY" else -1
                         G_index = [int(a.index) for a in residue.atoms() if a.name == CHI1_ATOMS[residue.name][-1]][0] if residue.name in CHI1_ATOMS.keys() else -1
                         D_index = [int(a.index) for a in residue.atoms() if a.name == CHI2_ATOMS[residue.name][-1]][0] if residue.name in CHI2_ATOMS.keys() else -1
                         peptide_particle_indices = [N_index,C_index,CA_index,CB_index,G_index,D_index]
                     else:
                         raise NotImplementedError(f"model type {model_type} not implemented")
-                    
+
                     napshiftforce.addPeptide(*peptide_particle_indices,restype,
                                                 {k:v if not np.isnan(v) else -1 for k,v in experimental_chemical_shifts.items()}, # -1 to indicate where data is not provided for a chemical shift, and that it should be ignored by the restraints
                                                 {k:v if not np.isnan(v) else -1 for k,v in random_coil_chemical_shifts.items()},         # -1 to indicate where data is not provided for a chemical shift, and that it should be ignored by the restraints
                                                 experimental_chemical_shift_factors,
                                                 int(residue.id),
                                                 chain.id)
-
-                                        
+    assert napshiftforce.getNumPeptides() > 0, f"Error: no peptides added to the NapShiftForce from input file {chemical_shifts_file}! Please check your input file and make sure that residue/chain IDs match those of the given topology."
     napshiftforce.setModelType(model_type)
     return napshiftforce
-
 def get_restricted_bending_force(top, resids_for_ReB=None):
     restrict_angle_force = openmm.CustomAngleForce("ReB_K/((sin(theta))^2)")
     restrict_angle_force.addGlobalParameter("ReB_K", 0)

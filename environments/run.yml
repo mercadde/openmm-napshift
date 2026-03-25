@@ -8,7 +8,7 @@ dependencies:
   - mdanalysis 2.7.0
   - numpy
   - openmm >=8.4.0,<8.5.0a0
-  - pandas
+  - pandas <=2.3.3
   - python >=3.11,<3.12.0a0
   - python_abi 3.11.* *_cp311
   - pytorch >=2.9.1,<2.10.0a0

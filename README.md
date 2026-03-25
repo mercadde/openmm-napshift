@@ -66,6 +66,10 @@ CS restraints can be applied to atomistic-resolution simulations, simulations wi
 - [Running Martini3 simulations with Chemical Shift restraints](tutorials/martini_tutorial.ipynb)
 - [Running dramatically coarse-grained (e.g. CALVADOS) simulations with Chemical Shift restraints](tutorials/CA_tutorial.ipynb)
 
+# Common Sources of Error:
+- Ensure that the residue/chain IDs in your input Chemical Shift input file match those of the topology used to create the OpenMM system. Some functions used to convert `.top` files to an OpenMM system can change the residue/chain IDs (usually indexing all of these from 1). `get_napshift_force` expects the OpenMM topology and the Chemical Shift input file to agree.
+- Currently, non-orthogonal (non-cubic) simulations boxes are not supported.
+- For the prediction of Random Coil Chemical Shifts from sequence, if there are non-standard amino-acids within your protein chain, the sequence will be split into blocks of continuous stretches of standard amino-acids, and CamCoil predictions will be perfomed on these blocks only.
 
 
 

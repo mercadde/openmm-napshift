@@ -363,6 +363,7 @@ void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShif
             throw OpenMMException("NapShiftForce: \"CUDAGraphWarmupSteps\" must be a positive integer");
         }
     }
+    std::cout << "no NN execute" << std::endl;
 }
 
 void CudaCalcNapShiftForceKernel::prepareNapShiftInputs(ContextImpl& context) { 
@@ -450,8 +451,10 @@ static void executeGraph(bool includeForces,
                          torch::Tensor& dNN_dAngle,
                          torch::Tensor& relevant_dNN_dAngle) {
     NapShiftForceVector.zero_();
+    //dNN_dAngle.zero_();
 
     csTensor = predictionModel.forward(inputs).toTensor();
+    
     csDifference = CSExpTensor - (csTensor + randomCoilTensor);
     //dealing with undefined inputs
     csDifference = torch::where((CSExpTensor == -1) | (randomCoilTensor == -1), 0.0, csDifference); 
@@ -526,7 +529,7 @@ static void executeGraphEnsembleAvg(bool includeForces,
 }  
 
 double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy) {
-    long long currentStep = context.getStepCount();
+        long long currentStep = context.getStepCount();
     
     // Push to the PyTorch context
     CHECK_RESULT(cuCtxPushCurrent(primaryContext), "Failed to push the CUDA context");
