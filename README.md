@@ -13,7 +13,7 @@ cd environments
 # conda environment containing all dependencies required to run the tutorials in this project
 conda env create -f run.yml 
 conda activate OpenMMNapShift
-conda install openmmnapshift-1.0.0-py311hfe2ebbc_0.conda
+conda install openmmnapshift-1.0.2-py311hfe2ebbc_0.conda
  # additional dependency not yet published to conda-forge, required to compute random coil chemical shifts 
 conda install pycamcoil-1.0.0-py_0.conda
 ```
