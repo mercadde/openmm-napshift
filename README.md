@@ -59,6 +59,8 @@ conda install pycamcoil-1.0.0-py_0.conda
    python -m pip install .
    ```
 
+   (Note that the build.yml environment does not contain some of the runtime dependencies - you should either install these in the build environment, or switch to the run.yml environment).
+
 # Using the OpenMM NapShift plugin
 CS restraints can be applied to atomistic-resolution simulations, simulations with the Martini3 forcefield, and simulations with dramatically coarse-grained forcefields which represent only CA atoms. Tutorials for each of these are provided:
 - [Creating Chemical Shift input files](tutorials/create_input_files.ipynb)
