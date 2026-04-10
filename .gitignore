@@ -5,3 +5,5 @@ _packaging/
 *.xtc
 tutorials/Data/1DH3_APO/*
 tutorials/Data/8K6Z/*
+.vscode/*
+environments/packaging/conda-build-out.txt

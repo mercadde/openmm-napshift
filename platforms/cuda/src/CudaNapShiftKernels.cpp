@@ -363,7 +363,6 @@ void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShif
             throw OpenMMException("NapShiftForce: \"CUDAGraphWarmupSteps\" must be a positive integer");
         }
     }
-    std::cout << "no NN execute" << std::endl;
 }
 
 void CudaCalcNapShiftForceKernel::prepareNapShiftInputs(ContextImpl& context) { 
