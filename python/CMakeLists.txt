@@ -39,6 +39,7 @@ add_custom_command(
 
 
 # Compile the Python module.
+OUTPUT "PYTHON_EXECUTABLE: ${PYTHON_EXECUTABLE}"
 
 add_custom_target(PythonInstall DEPENDS "${WRAP_FILE}"  "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
 set(NAPSHIFT_PLUGIN_HEADER_DIR "${CMAKE_SOURCE_DIR}/openmmapi/include")
@@ -46,6 +47,6 @@ set(NAPSHIFT_PLUGIN_LIBRARY_DIR "${CMAKE_BINARY_DIR}")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/openmmnapshift/utils.py ${CMAKE_CURRENT_BINARY_DIR}/openmmnapshift/utils.py)
 add_custom_command(TARGET PythonInstall
-    COMMAND "${PYTHON_EXECUTABLE}" -m pip install .
+    COMMAND "${PYTHON_EXECUTABLE}" -m pip install . --no-deps --no-build-isolation --ignore-installed -vv
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 )

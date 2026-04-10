@@ -43,7 +43,9 @@ requirements:
     - gxx_impl_linux-64 14.3.0 h2185e75_15
     - gxx_linux-64 14.3.0 hcfe7c2f_14
     - make 
-    - cuda-toolkit
+    - python 3.11.14 hd63d673_2_cpython
+    - python_abi 3.11 8_cp311
+    - cuda-toolkit 12.9
   host:
     - cpython 3.11.14 py311hd8ed1ab_2
     - cuda-crt-tools 12.9.86 ha770c72_2
@@ -65,7 +67,7 @@ requirements:
     - python_abi 3.11 8_cp311
     - pytorch 2.9.1 cuda129_mkl_py311_hcbd18c7_301
     - swig 
-    - cuda-toolkit
+    - cuda-toolkit 12.9
   run:
     - __glibc >=2.17,<3.0.a0
     - cuda-version >=12.9,<13
@@ -74,4 +76,3 @@ requirements:
     - python >=3.11,<3.12.0a0
     - python_abi 3.11.* *_cp311
     - pytorch >=2.9.1,<2.10.0a0
-    

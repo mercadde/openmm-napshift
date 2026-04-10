@@ -15,8 +15,13 @@ if [[ "$OSTYPE" == "darwin"* && $OSX_ARCH == "arm64" ]]; then
 fi
 
 echo "testing"
-echo "${PREFIX}"
+echo "prefix: $PREFIX"
 echo "${LIBTORCH_DIR}"
+echo `ls -d $PREFIX`
+
+
+test="123"
+echo "$test"
 
 CMAKE_FLAGS="  -DCMAKE_INSTALL_PREFIX=${PREFIX}"
 CMAKE_FLAGS+=" -DCMAKE_BUILD_TYPE=Release"
@@ -32,6 +37,8 @@ CMAKE_FLAGS+=" -DOPENCL_LIBRARY=${PREFIX}/lib/libOpenCL${SHLIB_EXT}"
 
 CMAKE_FLAGS+=" -DCMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES="
 CMAKE_FLAGS+=" -DCMAKE_CUDA_COMPILER=${PREFIX}/bin/nvcc"
+
+CMAKE_FLAGS+=" -DPYTHON_EXECUTABLE=${PYTHON}"
 declare -a CUDA_CONFIG_ARGS
 
 if [ ${cuda_compiler_version} != "None" ]; then
@@ -57,3 +64,5 @@ if [[ "$OSTYPE" == "darwin"* && $OSX_ARCH == "arm64" ]]; then
     # clean up, otherwise, environment is stored in package
     rm -fr ${LIBTORCH_DIR}
 fi
+
+echo `find $PREFIX | grep openmmnapshift`
