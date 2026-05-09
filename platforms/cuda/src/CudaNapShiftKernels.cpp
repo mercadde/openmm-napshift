@@ -52,6 +52,15 @@
 #include <torch/csrc/jit/serialization/import.h>
 #include <ATen/ATen.h>
 
+#include <cassert>
+#include <sstream>
+#include <stdexcept>
+
+#include <iostream>
+#include <mutex>
+#include <condition_variable>
+static std::mutex debug_mtx;
+
 using namespace NapShiftPlugin;
 using namespace OpenMM;
 using namespace std;
@@ -72,6 +81,9 @@ CudaCalcNapShiftForceKernel::CudaCalcNapShiftForceKernel(string name, const Plat
 }
 
 CudaCalcNapShiftForceKernel::~CudaCalcNapShiftForceKernel() {
+    if (numExpectedReplicas > 1) {
+        ReplicaGroup::release(forceId, cu.getDeviceIndex());
+    }
     cuDevicePrimaryCtxRelease(cu.getDevice());
 }
 
@@ -111,6 +123,130 @@ static vector<int> linearize(const std::vector<std::vector<int>>& vec_vec) {
         }
     }
     return vec;
+}
+
+
+std::mutex ReplicaGroup::registryMtx;
+std::map<std::pair<int, int>, std::weak_ptr<ReplicaGroup>> ReplicaGroup::registry;
+
+std::shared_ptr<ReplicaGroup> ReplicaGroup::get(int forceId, int deviceIndex) {
+  std::lock_guard<std::mutex> lock(registryMtx);
+  auto key = std::make_pair(forceId, deviceIndex);
+  auto it = registry.find(key);
+  if (it != registry.end()) {
+    if (auto sp = it->second.lock())
+      return sp;
+  }
+  auto sp = std::make_shared<ReplicaGroup>();
+  registry[key] = sp;
+  return sp;
+}
+
+void ReplicaGroup::release(int forceId, int deviceIndex) {
+  std::lock_guard<std::mutex> lock(registryMtx);
+  auto key = std::make_pair(forceId, deviceIndex);
+  registry.erase(key);
+}
+
+void ReplicaGroup::registerReplica(CudaCalcNapShiftForceKernel *kernel, int numExpected_) {
+  std::lock_guard<std::mutex> lock(mtx);
+  if (numExpected == 0) {
+    numExpected = numExpected_;
+  } else if (numExpected != numExpected_) {
+    throw OpenMMException("NapShiftForce: all replicas must declare the same 'numReplicas'");
+  }
+  kernel->replicaIdx = static_cast<int>(replicas.size());
+  replicas.push_back(kernel);
+  numReplicas = static_cast<int>(replicas.size());
+}
+
+void ReplicaGroup::runBatchedNNAndForces() {
+  int R = numReplicas;
+  auto flatInput = batchedInput.view({R * numPeptides, fullInputVecSize});
+
+  batchedCS = model.forward({flatInput}).toTensor().view({R, numPeptides, numAtomTypes});
+
+  auto avgCS = batchedCS.mean(0);
+
+  auto diff = CSExpTensor - (avgCS + randomCoilTensor);
+  diff = torch::where((CSExpTensor == -1) | (randomCoilTensor == -1), 0.0, diff);
+  diff = torch::where(
+      torch::abs(diff) < modelErrors, 0.0,
+      torch::where(diff > 0, diff - modelErrors, diff + modelErrors));
+
+  auto energy = K * torch::sum(ChemShiftScale * torch::square(diff));
+
+  batchedGrad = torch::autograd::grad({energy}, {batchedInput})[0].detach();
+
+  batchedForces.zero_();
+  for (int r = 0; r < R; r++) {
+    auto g = batchedGrad[r]; 
+    auto relevant =
+        torch::cat({g.narrow(1, 22, 2 * numInputAngles),
+                    g.narrow(1, oneInputVecSize + 22, 2 * numInputAngles),
+                    g.narrow(1, 2 * oneInputVecSize + 22, 2 * numInputAngles)},
+                   1); 
+
+    batchedForces[r].copy_(
+        relevant.reshape({numPeptides, 3 * 2 * numInputAngles, 1, 1})
+            .repeat({1, 1, 4, 3})
+            .reshape({-1, 3}));
+  }
+}
+
+double ReplicaGroup::executeBatched(CudaCalcNapShiftForceKernel *caller, OpenMM::ContextImpl &context, bool includeForces, bool /*includeEnergy*/) {
+  int r = caller->replicaIdx;
+
+  caller->prepareNapShiftInputs(context, caller->inputSlice);
+
+  {
+    std::unique_lock<std::mutex> lock(mtx);
+    int myGeneration = barrierGeneration;
+
+    ++numArrived;
+    if (numArrived == numExpected) {
+      numArrived = 0;
+      ++barrierGeneration;
+      groupException = nullptr;
+
+      try {
+        CUresult sync_res = cuCtxSynchronize();
+        if (sync_res != CUDA_SUCCESS) {
+            throw OpenMMException("CUDA sync failed before PyTorch execution.");
+        }
+
+        c10::cuda::set_device(deviceIndex);
+
+        K.zero_();
+        K += context.getParameter("NapShift_K");
+
+        runBatchedNNAndForces();
+
+        sync_res = cuCtxSynchronize();
+        if (sync_res != CUDA_SUCCESS) {
+            throw OpenMMException("CUDA sync failed after PyTorch execution.");
+        }
+      } catch (...) {
+        groupException = std::current_exception();
+      }
+
+      lock.unlock();
+      cv.notify_all();
+    } else {
+      cv.wait(lock, [&] { return barrierGeneration != myGeneration; });
+    }
+
+    if (groupException) {
+        std::rethrow_exception(groupException);
+    }
+  }
+
+  if (includeForces && context.getParameter("NapShift_K") > 0) {
+    caller->forceSlice = batchedForces[r];
+    caller->accumulateParticleForces(caller->forceSlice);
+  }
+
+  return 0.0;
 }
 
 void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShiftForce& force) {
@@ -363,10 +499,66 @@ void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShif
             throw OpenMMException("NapShiftForce: \"CUDAGraphWarmupSteps\" must be a positive integer");
         }
     }
+
+    // ReplicaGroup setup logic
+    numExpectedReplicas = 0;
+    if (properties.find("numReplicas") != properties.end()) {
+        numExpectedReplicas = std::stoi(properties.at("numReplicas"));
+    }
+
+    if (numExpectedReplicas > 1) {
+        if (properties.find("groupId") == properties.end()) {
+            throw OpenMMException("NapShiftForce: 'numReplicas' > 1 requires 'groupId'");
+        }
+        forceId = std::stoi(properties.at("groupId"));
+        group = ReplicaGroup::get(forceId, cu.getDeviceIndex());
+
+        {
+          std::lock_guard<std::mutex> lock(group->mtx);
+          if (!group->initialized) {
+              group->numPeptides = numPeptides;
+              group->numAtomTypes = numAtomTypes;
+              group->numInputAngles = numInputAngles;
+              group->oneInputVecSize = oneInputVecSize;
+              group->fullInputVecSize = fullInputVecSize;
+              group->usePeriodic = usePeriodic;
+              group->deviceIndex = cu.getDeviceIndex();
+              group->realOptionsDevice = realOptionsDevice;
+              group->model = model; 
+              group->modelErrors = modelErrors;
+              group->randomCoilTensor = randomCoilTensor;
+              group->CSExpTensor = CSExpTensor;
+              group->ChemShiftScale = ChemShiftScale;
+              group->K = K;
+
+              int R = numExpectedReplicas;
+              int forceVecSize = numPeptides * 3 * 2 * numInputAngles * 4;
+
+              CHECK_RESULT(cuCtxPushCurrent(primaryContext), "Failed to push the CUDA context");
+              const torch::Device device2(torch::kCUDA, cu.getDeviceIndex());
+            
+              group->batchedInput = torch::zeros({R, numPeptides, fullInputVecSize}, realOptionsDevice);
+              for (int r = 0; r < R; r++) {
+                  group->batchedInput[r].copy_(inputTensor);
+              }
+              group->batchedInput.requires_grad_(true);
+            
+              group->batchedCS = torch::empty({R, numPeptides, numAtomTypes}, realOptionsDevice);
+              group->batchedForces = torch::empty({R, forceVecSize, 3}, realOptionsDevice);
+              group->batchedGrad = torch::empty({R, numPeptides, fullInputVecSize}, realOptionsDevice);
+            
+              CUcontext ctx2;
+              CHECK_RESULT(cuCtxPopCurrent(&ctx2), "Failed to pop the CUDA context");
+              group->initialized = true;
+          }
+        }        
+        group->registerReplica(this, numExpectedReplicas);
+        inputSlice = group->batchedInput[replicaIdx];
+    }
 }
 
-void CudaCalcNapShiftForceKernel::prepareNapShiftInputs(ContextImpl& context) { 
-    void* inputData = getTensorPointer(cu, inputTensor);
+void CudaCalcNapShiftForceKernel::prepareNapShiftInputs(ContextImpl& context, torch::Tensor& dest) { 
+    void* inputData = getTensorPointer(cu, dest);
 
     int block_size = round64(round((numPeptides*numInputAngles-1)/(device_multiprocessors-1)));
     block_size = std::min(block_size, device_max_threads_per_block);
@@ -389,8 +581,8 @@ void CudaCalcNapShiftForceKernel::prepareNapShiftInputs(ContextImpl& context) {
     }
 }
 
-void CudaCalcNapShiftForceKernel::accumulateParticleForces() { 
-    void* NapShiftForceData = getTensorPointer(cu, NapShiftForceVector);
+void CudaCalcNapShiftForceKernel::accumulateParticleForces(torch::Tensor& srcForces) { 
+    void* NapShiftForceData = getTensorPointer(cu, srcForces);
 
     int block_size = round64(round((numNapShiftParticles-1)/(device_multiprocessors-1)));
     block_size = std::min(block_size, device_max_threads_per_block);
@@ -528,14 +720,24 @@ static void executeGraphEnsembleAvg(bool includeForces,
 }  
 
 double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy) {
-        long long currentStep = context.getStepCount();
+    if (numExpectedReplicas > 1) {
+        CHECK_RESULT(cuCtxPushCurrent(primaryContext), "Failed to push the CUDA context");
+        getIndexToAtom();
+        double energy = group->executeBatched(this, context, includeForces, includeEnergy);
+        CUcontext ctx;
+        CHECK_RESULT(cuCtxPopCurrent(&ctx), "Failed to pop the CUDA context");
+        assert(primaryContext == ctx); 
+        return energy;
+    }
+
+    long long currentStep = context.getStepCount();
     
     // Push to the PyTorch context
     CHECK_RESULT(cuCtxPushCurrent(primaryContext), "Failed to push the CUDA context");
     
     getIndexToAtom();
 
-    prepareNapShiftInputs(context);
+    prepareNapShiftInputs(context, inputTensor);
 
     K.zero_();
     K += context.getParameter("NapShift_K");
@@ -708,7 +910,7 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
 
     if (includeForces) {
         if (context.getParameter("NapShift_K") > 0){
-            accumulateParticleForces();
+            accumulateParticleForces(NapShiftForceVector);
         }
     }
     
@@ -775,4 +977,3 @@ void CudaCalcNapShiftForceKernel::UploadMyCSDifference(ContextImpl& context) {
         }
     }
 }
-
