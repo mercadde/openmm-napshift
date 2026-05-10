@@ -1,4 +1,5 @@
 import openmm
+import torch
 import numpy as np
 import pynmrstar
 from itertools import groupby
@@ -86,13 +87,15 @@ def read_chemical_shifts(chemical_shifts_file):
             chemical_shifts_data[(resid,chainid)] = (restype, chemical_shifts, chemical_shifts_factors)
     return chemical_shifts_data
 
-def get_napshift_force(top, chemical_shifts_file, model_type):
+def get_napshift_force(top, chemical_shifts_file, model_type, camcoil=None):
     chemical_shifts_data = read_chemical_shifts(chemical_shifts_file)
     napshiftforce = NapShiftForce()
-    camcoil = CamCoil()
+    
+    if camcoil is None:
+        from pycamcoil.camcoil_engine import CamCoil
+        camcoil = CamCoil()
 
-    for chain in top.chains():
-        # check if this is a protein chain
+    for chain in top.chains():        # check if this is a protein chain
         if any([residue.name in RESIDUE_TYPES.keys() for residue in chain.residues()]):
             # get protein sequence for this chain, updating CYO and PRC residues according to the chemical shift input file 
             sequence = []
@@ -161,6 +164,100 @@ def get_napshift_force(top, chemical_shifts_file, model_type):
     assert napshiftforce.getNumPeptides() > 0, f"Error: no peptides added to the NapShiftForce from input file {chemical_shifts_file}! Please check your input file and make sure that residue/chain IDs match those of the given topology."
     napshiftforce.setModelType(model_type)
     return napshiftforce
+class MultiReplicaSimulation:
+    """
+    Convenience wrapper for ensemble-averaged NapShift simulations.
+
+    * All replicas share one NapShiftForce instance per system (identical
+      experimental CSs, same force constant K).
+    * The property numReplicas is set on the force so the C++ kernel
+      groups all replica kernels into a ReplicaGroup and runs a single
+      batched NN forward + backward pass each timestep.
+    * Chemical shift averaging is computed entirely on the GPU.
+    """
+
+    _next_group_id: int = 0  # class-level counter; unique per process
+
+    def __init__(self,
+                 num_replicas,
+                 topology,
+                 system_factory,
+                 cs_file,
+                 model_type,
+                 temperature,
+                 timestep,
+                 platform_name="CUDA",
+                 device="0",
+                 platform_properties=None,
+                 friction=0.01):
+        import openmm as mm
+        from openmm import app, unit
+
+        if platform_properties is None:
+            platform_properties = {"Precision": "mixed"}
+
+        self.num_replicas  = num_replicas
+        self.simulations   = []
+        self.napshift_forces = []
+
+        # Assign a process-unique groupId so all replicas in this ensemble
+        # rendezvous at the same C++ ReplicaGroup.  The groupId is stamped on
+        # every force so the kernel's registry lookup succeeds.
+        group_id = MultiReplicaSimulation._next_group_id
+        MultiReplicaSimulation._next_group_id += 1
+
+        shared_props = {
+            "numReplicas": str(num_replicas),
+            "groupId":     str(group_id),
+        }
+
+        for r in range(num_replicas):
+            system = system_factory()
+
+            nf = get_napshift_force(topology, cs_file, model_type)
+            nf.setUsesPeriodicBoundaryConditions(True)
+            nf.setUsesEnsembleAveraging(True)
+            for k, v in shared_props.items():
+                nf.setProperty(k, v)
+            system.addForce(nf)
+
+            integrator = mm.LangevinMiddleIntegrator(
+                temperature, friction / unit.picosecond, timestep)
+            platform = mm.Platform.getPlatformByName(platform_name)
+
+            # All replicas must be on the same GPU to share PyTorch tensors via ReplicaGroup.
+            props = dict(platform_properties)
+            if platform_name == "CUDA":
+                props["DeviceIndex"] = str(device)
+
+            sim = app.Simulation(topology, system, integrator, platform, props)
+            self.simulations.append(sim)
+            self.napshift_forces.append(nf)
+
+    def setPositions(self, positions):
+        """Set the same positions on every replica."""
+        for sim in self.simulations:
+            sim.context.setPositions(positions)
+
+    def setVelocitiesToTemperature(self, temperature):
+        """Randomise velocities independently for each replica."""
+        for sim in self.simulations:
+            sim.context.setVelocitiesToTemperature(temperature)
+
+    def step(self, num_steps):
+        """Advance all replicas in parralel by num_steps timesteps."""
+        import threading
+        for _ in range(num_steps):
+            threads = [threading.Thread(target=s.step, args=(1,))
+                       for s in self.simulations]
+            for t in threads: t.start()
+            for t in threads: t.join()
+
+    def getStates(self, **kwargs):
+        """Return a list of ``State`` objects, one per replica."""
+        return [sim.context.getState(**kwargs) for sim in self.simulations]
+
+
 def get_restricted_bending_force(top, resids_for_ReB=None):
     restrict_angle_force = openmm.CustomAngleForce("ReB_K/((sin(theta))^2)")
     restrict_angle_force.addGlobalParameter("ReB_K", 0)

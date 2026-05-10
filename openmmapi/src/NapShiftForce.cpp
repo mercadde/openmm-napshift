@@ -62,7 +62,12 @@ static  std::string GetExecutableDir() {
 }
 
 NapShiftForce::NapShiftForce(const map<string, string>& properties) : usePeriodic(false) {
-    const std::map<std::string, std::string> defaultProperties = {{"useCUDAGraphs", "true"}, {"CUDAGraphWarmupSteps", "100"}};
+    const std::map<std::string, std::string> defaultProperties = {
+        {"useCUDAGraphs", "true"},
+        {"CUDAGraphWarmupSteps", "100"},
+        {"numReplicas", "1"},  
+        {"groupId", "0"}
+    };
     this->properties = defaultProperties;
     for (auto& property : properties) {
         if (defaultProperties.find(property.first) == defaultProperties.end())

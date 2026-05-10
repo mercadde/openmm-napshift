@@ -41,8 +41,65 @@
 #include <ATen/ATen.h>
 #include <set>
 #include <memory>
+#include <mutex>
+#include <condition_variable>
 
 namespace NapShiftPlugin {
+
+class CudaCalcNapShiftForceKernel;
+
+// ReplicaGroup
+// Shared coordinator for all replica kernels that belong to the same NapShiftForce instance.
+class ReplicaGroup {
+public:
+    void registerReplica(CudaCalcNapShiftForceKernel* kernel, int numExpectedReplicas);
+    double executeBatched(CudaCalcNapShiftForceKernel* caller, OpenMM::ContextImpl& context, bool includeForces, bool includeEnergy);
+
+    static std::shared_ptr<ReplicaGroup> get(int forceId, int deviceIndex);
+    static void release(int forceId, int deviceIndex);
+
+private:
+    void runBatchedNNAndForces();
+
+    bool initialized = false;
+    torch::jit::script::Module model;
+    int numPeptides;
+    int numAtomTypes;
+    int numInputAngles;
+    int oneInputVecSize;
+    int fullInputVecSize;
+    bool usePeriodic;
+    int deviceIndex;
+
+    torch::TensorOptions realOptionsDevice;
+
+    torch::Tensor CSExpTensor;
+    torch::Tensor randomCoilTensor;
+    torch::Tensor ChemShiftScale;
+    torch::Tensor modelErrors;
+    torch::Tensor K;
+
+    torch::Tensor batchedInput;
+    torch::Tensor batchedCS;
+    torch::Tensor batchedForces;
+    torch::Tensor batchedGrad;
+
+    int numExpected = 0;
+    int numArrived  = 0;
+    int numReplicas = 0;
+    std::mutex mtx;
+    std::condition_variable cv;
+    int barrierGeneration = 0;
+    std::exception_ptr groupException = nullptr;
+
+    std::vector<CudaCalcNapShiftForceKernel*> replicas;
+
+    static std::mutex registryMtx;
+    static std::map<std::pair<int,int>, std::weak_ptr<ReplicaGroup>> registry;
+
+    friend class CudaCalcNapShiftForceKernel;
+};
+
 
 /**
  * This kernel is invoked by NapShiftForce to calculate the forces acting on the system and the energy of the system.
@@ -69,6 +126,15 @@ public:
     double execute(OpenMM::ContextImpl& context, bool includeForces, bool includeEnergy);
 
 private:
+    friend class ReplicaGroup;
+
+    // Replica batching variables
+    int numExpectedReplicas = 0;
+    int replicaIdx = -1;
+    int forceId = -1;
+    std::shared_ptr<ReplicaGroup> group;
+    torch::Tensor inputSlice;
+    torch::Tensor forceSlice;
 
     bool hasInitializedKernel;
     OpenMM::CudaContext& cu;
@@ -131,8 +197,8 @@ private:
     bool useGraphs;
     int warmupSteps;
 
-    void prepareNapShiftInputs(OpenMM::ContextImpl& context);
-    void accumulateParticleForces();
+    void prepareNapShiftInputs(OpenMM::ContextImpl& context, torch::Tensor& dest);
+    void accumulateParticleForces(torch::Tensor& srcForces);
     void addForces();
     bool validPeptide(int index);
     bool neighbouringPeptides(int peptideIdx1, int peptideIdx2, int distance);
