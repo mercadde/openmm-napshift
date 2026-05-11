@@ -721,13 +721,16 @@ static void executeGraphEnsembleAvg(bool includeForces,
 
 double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy) {
     if (numExpectedReplicas > 1) {
-        CHECK_RESULT(cuCtxPushCurrent(primaryContext), "Failed to push the CUDA context");
-        getIndexToAtom();
-        double energy = group->executeBatched(this, context, includeForces, includeEnergy);
-        CUcontext ctx;
-        CHECK_RESULT(cuCtxPopCurrent(&ctx), "Failed to pop the CUDA context");
-        assert(primaryContext == ctx); 
-        return energy;
+        if (context.getParameter("NapShift_K") > 0){
+            CHECK_RESULT(cuCtxPushCurrent(primaryContext), "Failed to push the CUDA context");
+            getIndexToAtom();
+            double energy = group->executeBatched(this, context, includeForces, includeEnergy);
+            CUcontext ctx;
+            CHECK_RESULT(cuCtxPopCurrent(&ctx), "Failed to pop the CUDA context");
+            assert(primaryContext == ctx); 
+        }
+        //return energy;
+        return 0.0;
     }
 
     long long currentStep = context.getStepCount();

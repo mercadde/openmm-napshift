@@ -1,9 +1,16 @@
-build/
+build/*
+build_REP_AVG/*
 _packaging/
 
 *__pycache__*
 *.xtc
+*.chk
+*.log
+
 tutorials/Data/1DH3_APO/*
 tutorials/Data/8K6Z/*
+tutorials/TEST_DATA
+tutorials/CALVADOS_replica_average.py
+
 .vscode/*
 environments/packaging/conda-build-out.txt
