@@ -506,7 +506,7 @@ void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShif
         numExpectedReplicas = std::stoi(properties.at("numReplicas"));
     }
 
-    if (numExpectedReplicas > 1) {
+    if (ensembleAveraging) { //if (numExpectedReplicas > 1) {
         if (properties.find("groupId") == properties.end()) {
             throw OpenMMException("NapShiftForce: 'numReplicas' > 1 requires 'groupId'");
         }
@@ -720,7 +720,7 @@ static void executeGraphEnsembleAvg(bool includeForces,
 }  
 
 double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy) {
-    if (numExpectedReplicas > 1) {
+    if (ensembleAveraging) { //if (numExpectedReplicas > 1) {
         if (context.getParameter("NapShift_K") > 0){
             CHECK_RESULT(cuCtxPushCurrent(primaryContext), "Failed to push the CUDA context");
             getIndexToAtom();
@@ -753,7 +753,66 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
     inputs = {inputTensor};
 
     if (!useGraphs) { 
-            if (!ensembleAveraging || currentStep == 0) {
+            executeGraph(includeForces,
+                model,
+                inputs,
+                inputTensor,
+                randomCoilTensor,
+                CSExpTensor,
+                NapShiftForceVector,
+                forcesToParticles,
+                modelErrors,
+                ChemShiftSTD,
+                ChemShiftScale,
+                numPeptides,
+                numNapShiftParticles,
+                numInputAngles,
+                K,
+                csTensor,
+                csDifference,
+                energyTensor,
+                dNN_dAngle,
+                relevant_dNN_dAngle);
+    } else {
+        // Record graph if not already done
+        bool is_graph_captured = false;
+        if (graphs.find(includeForces) == graphs.end()) {
+            //CUDA graph capture must occur in a non-default stream
+            const auto stream = c10::cuda::getStreamFromPool(false, cu.getDeviceIndex());
+            const c10::cuda::CUDAStreamGuard guard(stream);
+            // Warmup the graph workload before capturing.  This first
+            // run  before  capture sets  up  allocations  so that  no
+            // allocations are  needed after.  Pytorch's  allocator is
+            // stream  capture-aware and,  after warmup,  will provide
+            // record static pointers and shapes during capture.
+            try {
+                for (int i = 0; i < this->warmupSteps; i++)
+                    executeGraph(includeForces,
+                        model,
+                        inputs,
+                        inputTensor,
+                        randomCoilTensor,
+                        CSExpTensor,
+                        NapShiftForceVector,
+                        forcesToParticles,
+                        modelErrors,
+                        ChemShiftSTD,
+                        ChemShiftScale,
+                        numPeptides,
+                        numNapShiftParticles,
+                        numInputAngles,
+                        K,
+                        csTensor,
+                        csDifference,
+                        energyTensor,
+                        dNN_dAngle,
+                        relevant_dNN_dAngle);                        
+            }
+            catch (std::exception& e) {
+                throw OpenMMException(string("NapShiftForce: Failed to warmup the model before graph construction. PyTorch reported the following error:\n") + e.what());
+            }
+            graphs[includeForces].capture_begin();
+            try {
                 executeGraph(includeForces,
                     model,
                     inputs,
@@ -774,125 +833,6 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
                     energyTensor,
                     dNN_dAngle,
                     relevant_dNN_dAngle);
-            } else {
-                executeGraphEnsembleAvg(includeForces,
-                    model,
-                    inputs,
-                    inputTensor,
-                    randomCoilTensor,
-                    CSExpTensor,
-                    NapShiftForceVector,
-                    forcesToParticles,
-                    modelErrors,
-                    ChemShiftSTD,
-                    ChemShiftScale,
-                    numPeptides,
-                    numNapShiftParticles,
-                    numInputAngles,
-                    K,
-                    csTensor,
-                    avgCSTensor);
-            }
-    } else {
-        // Record graph if not already done
-        bool is_graph_captured = false;
-        if (graphs.find(includeForces) == graphs.end()) {
-            //CUDA graph capture must occur in a non-default stream
-            const auto stream = c10::cuda::getStreamFromPool(false, cu.getDeviceIndex());
-            const c10::cuda::CUDAStreamGuard guard(stream);
-            // Warmup the graph workload before capturing.  This first
-            // run  before  capture sets  up  allocations  so that  no
-            // allocations are  needed after.  Pytorch's  allocator is
-            // stream  capture-aware and,  after warmup,  will provide
-            // record static pointers and shapes during capture.
-            try {
-                for (int i = 0; i < this->warmupSteps; i++)
-                    if (!ensembleAveraging || currentStep == 0) {
-                        executeGraph(includeForces,
-                            model,
-                            inputs,
-                            inputTensor,
-                            randomCoilTensor,
-                            CSExpTensor,
-                            NapShiftForceVector,
-                            forcesToParticles,
-                            modelErrors,
-                            ChemShiftSTD,
-                            ChemShiftScale,
-                            numPeptides,
-                            numNapShiftParticles,
-                            numInputAngles,
-                            K,
-                            csTensor,
-                            csDifference,
-                            energyTensor,
-                            dNN_dAngle,
-                            relevant_dNN_dAngle);                        
-                    } else {
-                        executeGraphEnsembleAvg(includeForces,
-                            model,
-                            inputs,
-                            inputTensor,
-                            randomCoilTensor,
-                            CSExpTensor,
-                            NapShiftForceVector,
-                            forcesToParticles,
-                            modelErrors,
-                            ChemShiftSTD,
-                            ChemShiftScale,
-                            numPeptides,
-                            numNapShiftParticles,
-                            numInputAngles,
-                            K,
-                            csTensor,
-                            avgCSTensor);  
-                    }
-            }
-            catch (std::exception& e) {
-                throw OpenMMException(string("NapShiftForce: Failed to warmup the model before graph construction. PyTorch reported the following error:\n") + e.what());
-            }
-            graphs[includeForces].capture_begin();
-            try {
-                if (!ensembleAveraging || currentStep == 0) {
-                    executeGraph(includeForces,
-                        model,
-                        inputs,
-                        inputTensor,
-                        randomCoilTensor,
-                        CSExpTensor,
-                        NapShiftForceVector,
-                        forcesToParticles,
-                        modelErrors,
-                        ChemShiftSTD,
-                        ChemShiftScale,
-                        numPeptides,
-                        numNapShiftParticles,
-                        numInputAngles,
-                        K,
-                        csTensor,
-                        csDifference,
-                        energyTensor,
-                        dNN_dAngle,
-                        relevant_dNN_dAngle);
-                } else {
-                    executeGraphEnsembleAvg(includeForces,
-                        model,
-                        inputs,
-                        inputTensor,
-                        randomCoilTensor,
-                        CSExpTensor,
-                        NapShiftForceVector,
-                        forcesToParticles,
-                        modelErrors,
-                        ChemShiftSTD,
-                        ChemShiftScale,
-                        numPeptides,
-                        numNapShiftParticles,
-                        numInputAngles,
-                        K,
-                        csTensor,
-                        avgCSTensor);
-                }
                 is_graph_captured = true;
                 graphs[includeForces].capture_end();
             }
