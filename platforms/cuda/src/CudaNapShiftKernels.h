@@ -35,6 +35,7 @@
 #include "NapShiftKernels.h"
 #include "openmm/cuda/CudaContext.h"
 #include "openmm/cuda/CudaArray.h"
+#include <optional>
 #include <torch/version.h>
 #include <torch/types.h>
 #include <ATen/cuda/CUDAGraph.h>
@@ -72,6 +73,17 @@ private:
     int deviceIndex;
 
     torch::TensorOptions realOptionsDevice;
+    
+    at::cuda::CUDAGraph graph;
+    bool graphCaptured = false;
+    bool useGraph;
+    int warmupLeft = 1000; 
+    std::optional<c10::cuda::CUDAStream> graphStream;
+
+    torch::Tensor flatInput;
+    torch::Tensor avgCS;
+    torch::Tensor diff;
+    torch::Tensor energy;
 
     torch::Tensor CSExpTensor;
     torch::Tensor randomCoilTensor;
@@ -145,6 +157,9 @@ private:
 
     bool usePeriodic;
     bool ensembleAveraging;
+
+    int stepsUntilRecalculation;
+    int recalculationInterval;
 
     int device_multiprocessors;
     int device_max_threads_per_block;
