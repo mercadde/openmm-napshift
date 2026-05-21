@@ -201,7 +201,7 @@ def create_simulation(residues,gpu_id,
         napshift_force.setRecalculationInterval(recalculation_interval)
         napshift_force.setProperty("numReplicas", str(num_reps))
         napshift_force.setProperty("groupId", str(group_id))
-        # napshift_force.setProperty("useCUDAGraphs", "false")
+        napshift_force.setProperty("useCUDAGraphs", "false")
         system.addForce(napshift_force)
         num_NapShift_peptides = napshift_force.getNumPeptides()
         

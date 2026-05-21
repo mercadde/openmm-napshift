@@ -53,6 +53,8 @@ class CudaCalcNapShiftForceKernel;
 // Shared coordinator for all replica kernels that belong to the same NapShiftForce instance.
 class ReplicaGroup {
 public:
+    ~ReplicaGroup();
+
     void registerReplica(CudaCalcNapShiftForceKernel* kernel, int numExpectedReplicas);
     double executeBatched(CudaCalcNapShiftForceKernel* caller, OpenMM::ContextImpl& context, bool includeForces, bool includeEnergy);
 
@@ -95,6 +97,9 @@ private:
     torch::Tensor batchedCS;
     torch::Tensor batchedForces;
     torch::Tensor batchedGrad;
+   
+    std::vector<cudaEvent_t> readyEvents;
+    cudaEvent_t doneEvent;
 
     int numExpected = 0;
     int numArrived  = 0;

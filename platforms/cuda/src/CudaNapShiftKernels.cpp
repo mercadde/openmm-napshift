@@ -89,6 +89,15 @@ CudaCalcNapShiftForceKernel::~CudaCalcNapShiftForceKernel() {
     cuDevicePrimaryCtxRelease(cu.getDevice());
 }
 
+// We have to release the events on cuda
+ReplicaGroup::~ReplicaGroup() {
+    for (cudaEvent_t ev : readyEvents) {
+        cudaEventDestroy(ev);
+    }
+    cudaEventDestroy(doneEvent);
+    readyEvents.clear();
+}
+
 static int round64(int x)
 {
     int remainder = x % 64;
@@ -200,11 +209,14 @@ double ReplicaGroup::executeBatched(CudaCalcNapShiftForceKernel *caller, OpenMM:
 
   caller->prepareNapShiftInputs(context, caller->inputSlice);
 
+  // We have arrived, record this event so that all openmm streams can wait for us to finish
+  cudaEventRecord(readyEvents[r], caller->cu.getCurrentStream());
+
   {
     std::unique_lock<std::mutex> lock(mtx);
     int myGeneration = barrierGeneration;
-
     ++numArrived;
+
     if (numArrived == numExpected) {
       numArrived = 0;
       ++barrierGeneration;
@@ -215,6 +227,11 @@ double ReplicaGroup::executeBatched(CudaCalcNapShiftForceKernel *caller, OpenMM:
 
         if (!graphStream.has_value()) {
             graphStream = c10::cuda::getStreamFromPool(true, deviceIndex);
+        }
+
+        // Leader makes PyTorch stream wait for ALL replica OpenMM streams
+        for(int i=0; i<numExpected; i++) {
+          cudaStreamWaitEvent(graphStream.value().stream(), readyEvents[i], 0);
         }
 
         c10::cuda::CUDAStreamGuard guard(graphStream.value());
@@ -239,11 +256,15 @@ double ReplicaGroup::executeBatched(CudaCalcNapShiftForceKernel *caller, OpenMM:
             } else {
                 graph.replay();
             }            
+            cudaStreamSynchronize(graphStream.value().stream());
         } else {
             runBatchedNNAndForces();
         }
-        
-        cudaStreamSynchronize(graphStream.value().stream());
+
+        // We are done, we will wait on this event before handing control back to openmm
+        cudaEventRecord(doneEvent, graphStream.value().stream());
+
+        // cudaStreamSynchronize(graphStream.value().stream());
 
       } catch (...) {
         groupException = std::current_exception();
@@ -258,6 +279,9 @@ double ReplicaGroup::executeBatched(CudaCalcNapShiftForceKernel *caller, OpenMM:
         std::rethrow_exception(groupException);
     }
   }
+
+  // Now we wait for these ops to finish before doing openmm
+  cudaStreamWaitEvent(caller->cu.getCurrentStream(), doneEvent, 0);
 
   if (includeForces && context.getParameter("NapShift_K") > 0) {
     caller->forceSlice = batchedForces[r];
@@ -326,6 +350,7 @@ void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShif
     model.to(device);
     model.eval();
     model = torch::jit::freeze(model);
+    // model = torch::jit::optimize_for_inference(model);
 
     modelErrors = torch::empty({numAtomTypes}, realOptionsCPU);
     ChemShiftSTD = torch::empty({numAtomTypes}, realOptionsCPU);
@@ -573,8 +598,15 @@ void CudaCalcNapShiftForceKernel::initialize(const System& system, const NapShif
               const torch::Device device2(torch::kCUDA, cu.getDeviceIndex());
             
               group->batchedInput = torch::zeros({R, numPeptides, fullInputVecSize}, realOptionsDevice);
+
+              cudaEventCreateWithFlags(&group->doneEvent, cudaEventDisableTiming);
+              group->readyEvents.reserve(R);
+
               for (int r = 0; r < R; r++) {
                   group->batchedInput[r].copy_(inputTensor);
+                  cudaEvent_t ready;
+                  cudaEventCreateWithFlags(&ready, cudaEventDisableTiming);
+                  group->readyEvents.push_back(ready);
               }
               group->batchedInput.requires_grad_(true);
             
@@ -598,7 +630,7 @@ void CudaCalcNapShiftForceKernel::prepareNapShiftInputs(ContextImpl& context, to
     int block_size = round64(round((numPeptides*numInputAngles-1)/(device_multiprocessors-1)));
     block_size = std::min(block_size, device_max_threads_per_block);
 
-    CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context");
+    // CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context");
     {
         ContextSelector selector(cu); // Switch to the OpenMM context
         void* inputArgs[] = {&inputData,
@@ -612,7 +644,7 @@ void CudaCalcNapShiftForceKernel::prepareNapShiftInputs(ContextImpl& context, to
                              cu.getInvPeriodicBoxSizePointer() };
         
         cu.executeKernel(resolveAngleKernel, inputArgs, numPeptides*numInputAngles, block_size);
-        CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context"); // Synchronize before switching to the PyTorch context
+        // CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context"); // Synchronize before switching to the PyTorch context
     }
 }
 
@@ -622,7 +654,7 @@ void CudaCalcNapShiftForceKernel::accumulateParticleForces(torch::Tensor& srcFor
     int block_size = round64(round((numNapShiftParticles-1)/(device_multiprocessors-1)));
     block_size = std::min(block_size, device_max_threads_per_block);
 
-    CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context"); 
+    // CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context"); 
     {
         ContextSelector selector(cu); // Switch to the OpenMM context
         int paddedNumAtoms = cu.getPaddedNumAtoms();
@@ -636,7 +668,7 @@ void CudaCalcNapShiftForceKernel::accumulateParticleForces(torch::Tensor& srcFor
                              &cu.getForce().getDevicePointer(),
                              &paddedNumAtoms};
         cu.executeKernel(accumulateParticleForcesKernel, inputArgs, numNapShiftParticles, block_size);
-        CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context"); // Synchronize before switching to the PyTorch context
+        // CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context"); // Synchronize before switching to the PyTorch context
     } 
 }
 
@@ -652,7 +684,7 @@ void CudaCalcNapShiftForceKernel::getIndexToAtom() {
                              &numParticles,
                              &indexToAtomArray.getDevicePointer()};
         cu.executeKernel(swapAtomToIndexKernel, inputArgs, numParticles, block_size);
-        CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context"); // Synchronize before switching to the PyTorch context
+        // CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context"); // Synchronize before switching to the PyTorch context
     }
 }
 
@@ -778,7 +810,13 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
     }
 
     long long currentStep = context.getStepCount();
+
+    // Instead of syncing constantly put pytorch on the same stream so reads can happen on openmm data
+    cudaStream_t openmmStream = cu.getCurrentStream();
+    auto stream = c10::cuda::getStreamFromExternal(openmmStream, cu.getDeviceIndex());
     
+    const c10::cuda::CUDAStreamGuard guard(stream);   
+
     // Push to the PyTorch context
     CHECK_RESULT(cuCtxPushCurrent(primaryContext), "Failed to push the CUDA context");
     
@@ -788,10 +826,6 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
 
     K.zero_();
     K += context.getParameter("NapShift_K");
-    if (ensembleAveraging) {
-        DownloadCSDifferenceAvgs(context);
-        UploadMyCSDifference(context);
-    }
 
     vector<torch::jit::IValue> inputs;
     inputs = {inputTensor};
@@ -949,7 +983,7 @@ void CudaCalcNapShiftForceKernel::DownloadCSDifferenceAvgs(ContextImpl& context)
                              &tempData,
                              &numNapShiftParticles};
         cu.executeKernel(DownloadCSDifferenceAvgDataKernel, inputArgs, numNapShiftParticles, block_size);
-        CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context"); // Synchronize before switching to the PyTorch context
+        // CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context"); // Synchronize before switching to the PyTorch context
     }
 }
 
