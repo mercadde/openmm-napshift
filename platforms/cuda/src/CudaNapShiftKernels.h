@@ -80,6 +80,7 @@ private:
     bool graphCaptured = false;
     bool useGraph;
     int warmupLeft = 1000; 
+    float cached_K;
     std::optional<c10::cuda::CUDAStream> graphStream;
 
     torch::Tensor flatInput;
@@ -94,6 +95,7 @@ private:
     torch::Tensor K;
 
     torch::Tensor batchedInput;
+    torch::Tensor isolatedInput;
     torch::Tensor batchedCS;
     torch::Tensor batchedForces;
     torch::Tensor batchedGrad;

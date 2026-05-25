@@ -1,6 +1,9 @@
 import faulthandler
 faulthandler.enable()
 
+import ctypes
+libcuda = ctypes.CDLL("libcuda.so")
+
 import torch
 
 import openmm
@@ -74,6 +77,7 @@ def add_angles_restriction(top):
         for i in range(len(chain)-2):
             restrict_angle_force.addAngle(atoms[i].index, atoms[i+1].index, atoms[i+2].index)
             exclusions_1_3.append([atoms[i].index, atoms[i+1].index, atoms[i+2].index])
+
     return restrict_angle_force, exclusions_1_3
 
 parser = argparse.ArgumentParser()
@@ -201,7 +205,7 @@ def create_simulation(residues,gpu_id,
         napshift_force.setRecalculationInterval(recalculation_interval)
         napshift_force.setProperty("numReplicas", str(num_reps))
         napshift_force.setProperty("groupId", str(group_id))
-        napshift_force.setProperty("useCUDAGraphs", "false")
+        napshift_force.setProperty("useCUDAGraphs", "true")
         system.addForce(napshift_force)
         num_NapShift_peptides = napshift_force.getNumPeptides()
         
@@ -277,7 +281,9 @@ def simulate(reps, use_NapShift=False, time_before_warmup=0, timestep=0.01*unit.
 
     steps = int((simulation_time * unit.nanosecond) / timestep) if simulation_time > 0 else int(simulation_steps)
     print(f"simulating for {steps} steps natively batched on GPU...")
+    libcuda.cuProfilerStart()
     step_all(reps, steps)
+    libcuda.cuProfilerStop()
 
 residues = pd.read_csv('Data/CALVADOS_parameters.csv').set_index('three',drop=False)
 residues = residues.astype({"q": "float64"})
