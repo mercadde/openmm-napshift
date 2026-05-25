@@ -725,6 +725,7 @@ void resolveAngle(real* inputTensor,
         if (peptide > 0) {
             inputTensor[idx_left] = sinAngle;
             inputTensor[idx_left+1] = cosAngle;
+
         }
         inputTensor[idx_center] = sinAngle;
         inputTensor[idx_center+1] = cosAngle;

@@ -35,6 +35,7 @@
 #include "NapShiftKernels.h"
 #include "openmm/cuda/CudaContext.h"
 #include "openmm/cuda/CudaArray.h"
+#include <optional>
 #include <torch/version.h>
 #include <torch/types.h>
 #include <ATen/cuda/CUDAGraph.h>
@@ -52,6 +53,8 @@ class CudaCalcNapShiftForceKernel;
 // Shared coordinator for all replica kernels that belong to the same NapShiftForce instance.
 class ReplicaGroup {
 public:
+    ~ReplicaGroup();
+
     void registerReplica(CudaCalcNapShiftForceKernel* kernel, int numExpectedReplicas);
     double executeBatched(CudaCalcNapShiftForceKernel* caller, OpenMM::ContextImpl& context, bool includeForces, bool includeEnergy);
 
@@ -72,6 +75,18 @@ private:
     int deviceIndex;
 
     torch::TensorOptions realOptionsDevice;
+    
+    at::cuda::CUDAGraph graph;
+    bool graphCaptured = false;
+    bool useGraph;
+    int warmupLeft = 1000; 
+    float cached_K;
+    std::optional<c10::cuda::CUDAStream> graphStream;
+
+    torch::Tensor flatInput;
+    torch::Tensor avgCS;
+    torch::Tensor diff;
+    torch::Tensor energy;
 
     torch::Tensor CSExpTensor;
     torch::Tensor randomCoilTensor;
@@ -80,9 +95,13 @@ private:
     torch::Tensor K;
 
     torch::Tensor batchedInput;
+    torch::Tensor isolatedInput;
     torch::Tensor batchedCS;
     torch::Tensor batchedForces;
     torch::Tensor batchedGrad;
+   
+    std::vector<cudaEvent_t> readyEvents;
+    cudaEvent_t doneEvent;
 
     int numExpected = 0;
     int numArrived  = 0;
@@ -145,6 +164,9 @@ private:
 
     bool usePeriodic;
     bool ensembleAveraging;
+
+    int stepsUntilRecalculation;
+    int recalculationInterval;
 
     int device_multiprocessors;
     int device_max_threads_per_block;
