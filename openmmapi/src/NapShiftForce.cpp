@@ -65,8 +65,8 @@ NapShiftForce::NapShiftForce(const map<string, string>& properties) : usePeriodi
     const std::map<std::string, std::string> defaultProperties = {
         {"useCUDAGraphs", "true"},
         {"CUDAGraphWarmupSteps", "100"},
-        {"numReplicas", "1"},  
-        {"groupId", "0"}
+        {"numReplicas", "1"},  // (must be same across group)
+        {"groupId", "0"},
     };
     this->properties = defaultProperties;
     for (auto& property : properties) {
@@ -78,6 +78,7 @@ NapShiftForce::NapShiftForce(const map<string, string>& properties) : usePeriodi
     K = 0.0;
     avgCS = {};
     useEnsembleAveraging = false;
+    recalculationInterval = 1;
     pytorchModelsDir = GetExecutableDir() + "/site-packages/openmmnapshift/PytorchModels";
 }
 
@@ -95,6 +96,13 @@ void NapShiftForce::setUsesEnsembleAveraging(bool ensembleAveraging) {
 }
 bool NapShiftForce::usesEnsembleAveraging() const {
     return useEnsembleAveraging;
+}
+void NapShiftForce::setRecalculationInterval(int inRecalculationInterval) {
+    std::cout << "setrecalculationInterval : " << recalculationInterval << std::endl;
+    recalculationInterval = inRecalculationInterval;
+}
+int NapShiftForce::getRecalculationInterval() const {
+    return recalculationInterval;
 }
 
 int NapShiftForce::addPeptide(int bbIndex, int scIndex, char resType, std::map<std::string, double> csExp, std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId){

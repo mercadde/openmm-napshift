@@ -64,6 +64,8 @@ public:
     void setReportingParams(std::string reportFilename, int reportInterval);
     std::string getReportFilename() const;
     int getReportInterval() const;
+    void setRecalculationInterval(int recalculationInterval);
+    int getRecalculationInterval() const;
     void setProperty(const std::string& name, const std::string& value);
     const std::map<std::string, std::string>& getProperties() const;
     /**
@@ -99,6 +101,8 @@ private:
     bool usePeriodic;
     bool useEnsembleAveraging;
     bool uploadEnergyTensor;
+
+    int recalculationInterval;
 
     std::vector<std::unique_ptr<BasePeptide>> peptides; //TODO: serialization..?
 

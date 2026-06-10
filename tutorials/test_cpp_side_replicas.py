@@ -1,6 +1,9 @@
 import faulthandler
 faulthandler.enable()
 
+import ctypes
+libcuda = ctypes.CDLL("libcuda.so")
+
 import torch
 
 import openmm
@@ -74,6 +77,7 @@ def add_angles_restriction(top):
         for i in range(len(chain)-2):
             restrict_angle_force.addAngle(atoms[i].index, atoms[i+1].index, atoms[i+2].index)
             exclusions_1_3.append([atoms[i].index, atoms[i+1].index, atoms[i+2].index])
+
     return restrict_angle_force, exclusions_1_3
 
 parser = argparse.ArgumentParser()
@@ -96,6 +100,7 @@ parser.add_argument('--NapShift_K_gradient', default=0.001, type=float)
 parser.add_argument('--CS_filename', default="CS.txt")
 parser.add_argument('--num_reps', type=int, default=2)
 parser.add_argument('--time_before_warmup', type=float, default=0)
+parser.add_argument('--recalculation_interval', type=int, default=1)
 
 parser.add_argument('--overwrite', action=argparse.BooleanOptionalAction)
 
@@ -106,7 +111,7 @@ def create_simulation(residues,gpu_id,
              report_interval=1000,
              sim_name="test_sim", data_dir="EnsembleAvgTestData/eIF4B", cg_pdb="system/original_CA.pdb", CS_filename="NMRData/CS.list", 
              use_NapShift=False, num_reps=1, group_id=9999,
-             overwrite=False, minimize=True, add_reporters=True):
+             overwrite=False, minimize=True, add_reporters=True, recalculation_interval=1):
     # create a Simulation object for a single replicate
     
     if add_reporters:
@@ -197,8 +202,10 @@ def create_simulation(residues,gpu_id,
         napshift_force = get_napshift_force(top, f"{data_dir}/{CS_filename}", model_type='CA')
         napshift_force.setUsesPeriodicBoundaryConditions(True)
         napshift_force.setUsesEnsembleAveraging(True)
+        napshift_force.setRecalculationInterval(recalculation_interval)
         napshift_force.setProperty("numReplicas", str(num_reps))
         napshift_force.setProperty("groupId", str(group_id))
+        napshift_force.setProperty("useCUDAGraphs", "true")
         system.addForce(napshift_force)
         num_NapShift_peptides = napshift_force.getNumPeptides()
         
@@ -274,7 +281,9 @@ def simulate(reps, use_NapShift=False, time_before_warmup=0, timestep=0.01*unit.
 
     steps = int((simulation_time * unit.nanosecond) / timestep) if simulation_time > 0 else int(simulation_steps)
     print(f"simulating for {steps} steps natively batched on GPU...")
+    libcuda.cuProfilerStart()
     step_all(reps, steps)
+    libcuda.cuProfilerStop()
 
 residues = pd.read_csv('Data/CALVADOS_parameters.csv').set_index('three',drop=False)
 residues = residues.astype({"q": "float64"})
@@ -297,7 +306,7 @@ for i in range(args.num_reps):
                                report_interval=args.report_interval,
                                sim_name=f"{args.sim_name}/replicate{i}", data_dir=args.data_dir, cg_pdb=args.cg_pdb, CS_filename=args.CS_filename, 
                                use_NapShift=args.use_NapShift, num_reps=args.num_reps, group_id=group_id,
-                               overwrite=args.overwrite, minimize=False, add_reporters=True)
+                               overwrite=args.overwrite, minimize=False, add_reporters=True, recalculation_interval=args.recalculation_interval)
     reps.append(rep)
 
 def init_sim_context(sim_idx, sim):

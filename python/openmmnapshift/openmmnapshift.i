@@ -83,6 +83,8 @@ public:
     bool usesPeriodicBoundaryConditions() const;
     void setUsesEnsembleAveraging(bool ensembleAveraging);
     bool usesEnsembleAveraging() const;
+    void setRecalculationInterval(int recalculationInterval);
+    int getRecalculationInterval() const;
     int addPeptide(int bbIndex, int scIndex, char resType, std::map<std::string, double> csExp, std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId);
     int addPeptide(int N, int C, int CA, int CB, int G, int D, char resType, std::map<std::string, double> csExp, std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId);
     void getPeptideParameters(int index, int& bbIndex, int& scIndex, char& resType, std::map<std::string, double>& csExp, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) const;
