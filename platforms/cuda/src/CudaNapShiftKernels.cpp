@@ -205,10 +205,11 @@ void ReplicaGroup::runBatchedNNAndForces() {
   auto mask = (CSExpTensor == -1) | (randomCoilTensor == -1);
   diff_tmp = torch::where(mask, 0.0, diff_tmp);
 
-  auto absDiff = torch::abs(diff_tmp);
-  auto gtMask = diff_tmp > 0;
-  diff_tmp = torch::where(absDiff < modelErrors, 0.0,
-             torch::where(gtMask, diff_tmp - modelErrors, diff_tmp + modelErrors));
+  // no flatbottom when replica averaging
+  //auto absDiff = torch::abs(diff_tmp);
+  //auto gtMask = diff_tmp > 0;
+  //diff_tmp = torch::where(absDiff < modelErrors, 0.0,
+  //           torch::where(gtMask, diff_tmp - modelErrors, diff_tmp + modelErrors));
 
   energy = K * torch::sum(ChemShiftScale * torch::square(diff_tmp));
 
