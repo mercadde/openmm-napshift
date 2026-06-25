@@ -6,7 +6,7 @@ version = '@OPENMM_NAPSHIFT_VERSION@'
 openmm_dir = '@OPENMM_DIR@'
 torch_include_dirs = '@TORCH_INCLUDE_DIRS@'.split(';')
 napshift_plugin_header_dir = '@NAPSHIFT_PLUGIN_HEADER_DIR@'
-napshift_plugin_library_dir = 'NAPSHIFT_PLUGIN_LIBRARY_DIR'
+napshift_plugin_library_dir = '@NAPSHIFT_PLUGIN_LIBRARY_DIR@'
 torch_dir, _ = os.path.split('@TORCH_LIBRARY@') 
 
 # setup extra compile and link arguments on Mac

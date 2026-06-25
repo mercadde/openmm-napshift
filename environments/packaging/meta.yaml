@@ -46,6 +46,7 @@ requirements:
     - python 3.11.14 hd63d673_2_cpython
     - python_abi 3.11 8_cp311
     - cuda-toolkit 12.9
+    - sysroot_linux-64 >=2.35
   host:
     - cpython 3.11.14 py311hd8ed1ab_2
     - cuda-crt-tools 12.9.86 ha770c72_2

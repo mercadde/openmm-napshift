@@ -81,8 +81,8 @@ public:
     NapShiftForce(const std::map<std::string, std::string>& properties = {});
     void setUsesPeriodicBoundaryConditions(bool periodic);
     bool usesPeriodicBoundaryConditions() const;
-    void setUsesEnsembleAveraging(bool ensembleAveraging);
-    bool usesEnsembleAveraging() const;
+    void setApplyFlatBottom(bool flatBottom);
+    bool usesFlatBottom() const;
     void setRecalculationInterval(int recalculationInterval);
     int getRecalculationInterval() const;
     int addPeptide(int bbIndex, int scIndex, char resType, std::map<std::string, double> csExp, std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId);

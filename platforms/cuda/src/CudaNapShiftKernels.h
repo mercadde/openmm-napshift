@@ -93,6 +93,7 @@ private:
     torch::Tensor ChemShiftScale;
     torch::Tensor modelErrors;
     torch::Tensor K;
+    torch::Tensor applyFlatBottom;
 
     torch::Tensor batchedInput;
     torch::Tensor isolatedInput;
@@ -163,7 +164,6 @@ private:
     torch::TensorOptions intOptionsCPU;
 
     bool usePeriodic;
-    bool ensembleAveraging;
 
     int stepsUntilRecalculation;
     int recalculationInterval;
@@ -189,6 +189,7 @@ private:
 
     torch::jit::script::Module model;
     at::Tensor K;
+    at::Tensor applyFlatBottom;
 
     torch::Tensor modelErrors;
     torch::Tensor ChemShiftSTD;
@@ -226,9 +227,6 @@ private:
     bool neighbouringPeptides(int peptideIdx1, int peptideIdx2, int distance);
     int NapShiftIndex(int systemIndex);
     void getIndexToAtom();
-
-    void DownloadCSDifferenceAvgs(OpenMM::ContextImpl& context);
-    void UploadMyCSDifference(OpenMM::ContextImpl& context);
 
     void UploadEnergyTensor(OpenMM::ContextImpl& context);
 

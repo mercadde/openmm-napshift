@@ -80,7 +80,7 @@ void NapShiftForceProxy::serialize(const void* object, SerializationNode& node) 
 
     node.setIntProperty("forceGroup", force.getForceGroup());
     node.setBoolProperty("usesPeriodic", force.usesPeriodicBoundaryConditions());
-    node.setBoolProperty("useEnsembleAveraging", force.usesEnsembleAveraging());
+    node.setBoolProperty("usesFlatBottom", force.usesFlatBottom());
     node.setIntProperty("recalculationInteval", force.getRecalculationInterval());
     node.setStringProperty("modelType", force.getModelType());
     node.setDoubleProperty("K", force.getKDefaultValue());
@@ -130,8 +130,8 @@ void* NapShiftForceProxy::deserialize(const SerializationNode& node) const {
         force->setForceGroup(node.getIntProperty("forceGroup", 0));
     if (node.hasProperty("usesPeriodic"))
         force->setUsesPeriodicBoundaryConditions(node.getBoolProperty("usesPeriodic"));
-    if (node.hasProperty("useEnsembleAveraging"))
-        force->setUsesEnsembleAveraging(node.getBoolProperty("useEnsembleAveraging"));
+    if (node.hasProperty("usesFlatBottom"))
+        force->setApplyFlatBottom(node.getBoolProperty("usesFlatBottom"));
     if (node.hasProperty("K"))
         force->setKDefaultValue(node.getDoubleProperty("K"));
     if (node.hasProperty("recalculationInterval"))

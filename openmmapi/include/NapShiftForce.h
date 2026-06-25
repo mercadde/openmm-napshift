@@ -51,8 +51,8 @@ public:
     NapShiftForce(const std::map<std::string, std::string>& properties = {});
     void setUsesPeriodicBoundaryConditions(bool periodic);
     bool usesPeriodicBoundaryConditions() const;  
-    void setUsesEnsembleAveraging(bool ensembleAveraging);  
-    bool usesEnsembleAveraging() const;    
+    void setApplyFlatBottom(bool flatBottom);  
+    bool usesFlatBottom() const;    
     int addPeptide(int bbIndex, int scIndex, char resType, std::map<std::string, double> csExp, std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId);
     int addPeptide(int N, int C, int CA, int CB, int G, int D, char resType, std::map<std::string, double> csExp, std::map<std::string, double> csRC, std::map<std::string, double> csScale, int resId, std::string chainId);
     void getPeptideParameters(int index, int& bbIndex, int& scIndex, char& resType, std::map<std::string, double>& csExp, std::map<std::string, double>& csRC, std::map<std::string, double>& csScale, int& resId, std::string& chainId) const;
@@ -99,7 +99,7 @@ private:
     std::string modelType;
 
     bool usePeriodic;
-    bool useEnsembleAveraging;
+    bool applyFlatBottom;
     bool uploadEnergyTensor;
 
     int recalculationInterval;

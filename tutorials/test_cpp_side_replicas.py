@@ -201,7 +201,7 @@ def create_simulation(residues,gpu_id,
 
         napshift_force = get_napshift_force(top, f"{data_dir}/{CS_filename}", model_type='CA')
         napshift_force.setUsesPeriodicBoundaryConditions(True)
-        napshift_force.setUsesEnsembleAveraging(True)
+        napshift_force.setApplyFlatBottom(True)
         napshift_force.setRecalculationInterval(recalculation_interval)
         napshift_force.setProperty("numReplicas", str(num_reps))
         napshift_force.setProperty("groupId", str(group_id))
@@ -220,6 +220,8 @@ def create_simulation(residues,gpu_id,
     integrator = openmm.openmm.LangevinIntegrator(temp*unit.kelvin,0.01/unit.picosecond,timestep)   # Integrator which simulates using Langevin dynamics
 
     platform = openmm.Platform.getPlatformByName('CUDA')  
+    platform.loadPluginsFromDirectory('/shares/mcul245/research/ressci201900070-rcha387/openmm-napshift/build_REP_AVG2')
+    print(platform.getPluginLoadFailures())
     simulation = app.simulation.Simulation(pdb.topology, system, integrator, platform, dict(CudaPrecision='mixed', DeviceIndex=gpu_id))
     
     if minimize:

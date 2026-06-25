@@ -63,15 +63,6 @@ double NapShiftForceImpl::calcForcesAndEnergy(ContextImpl& context, bool include
 map<string, double> NapShiftForceImpl::getDefaultParameters() {
     map<string, double> parameters;
     parameters["NapShift_K"] = owner.getKDefaultValue();
-    
-    if (owner.usesEnsembleAveraging()) {
-        for (int i=0; i<owner.getNumPeptides(); i++) {
-            for (std::string atom: owner.getAtoms()) {
-                parameters["NapShift_MyCSDifference" + std::to_string(i) + atom] =  0;
-                parameters["NapShift_AvgCSDifference" + std::to_string(i) + atom] =  0;
-            }
-        }
-    }
 
     return parameters;
 }

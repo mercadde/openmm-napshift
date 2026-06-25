@@ -77,7 +77,7 @@ NapShiftForce::NapShiftForce(const map<string, string>& properties) : usePeriodi
     modelType = "martini";
     K = 0.0;
     avgCS = {};
-    useEnsembleAveraging = false;
+    applyFlatBottom = true;
     recalculationInterval = 1;
     pytorchModelsDir = GetExecutableDir() + "/site-packages/openmmnapshift/PytorchModels";
 }
@@ -91,11 +91,11 @@ void NapShiftForce::setUsesPeriodicBoundaryConditions(bool periodic) {
 bool NapShiftForce::usesPeriodicBoundaryConditions() const {
     return usePeriodic;
 }
-void NapShiftForce::setUsesEnsembleAveraging(bool ensembleAveraging) {
-    useEnsembleAveraging = ensembleAveraging;
+void NapShiftForce::setApplyFlatBottom(bool flatBottom) {
+    applyFlatBottom = flatBottom;
 }
-bool NapShiftForce::usesEnsembleAveraging() const {
-    return useEnsembleAveraging;
+bool NapShiftForce::usesFlatBottom() const {
+    return applyFlatBottom;
 }
 void NapShiftForce::setRecalculationInterval(int inRecalculationInterval) {
     std::cout << "setrecalculationInterval : " << recalculationInterval << std::endl;
