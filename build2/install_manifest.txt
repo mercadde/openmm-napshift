@@ -1,0 +1,7 @@
+/home/mcul245/anaconda3/envs/BuildOpenMMNapShift/include/NapShiftForce.h
+/home/mcul245/anaconda3/envs/BuildOpenMMNapShift/include/NapShiftKernels.h
+/home/mcul245/anaconda3/envs/BuildOpenMMNapShift/include/internal/NapShiftForceImpl.h
+/home/mcul245/anaconda3/envs/BuildOpenMMNapShift/include/internal/windowsExportNapShift.h
+/home/mcul245/anaconda3/envs/BuildOpenMMNapShift/lib/libOpenMMNapShift.so
+/home/mcul245/anaconda3/envs/BuildOpenMMNapShift/lib/plugins/libOpenMMNapShiftReference.so
+/home/mcul245/anaconda3/envs/BuildOpenMMNapShift/lib/plugins/libOpenMMNapShiftCUDA.so

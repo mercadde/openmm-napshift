@@ -1,0 +1,1 @@
+test_cpp_side_replicas.py --num_reps 4 --overwrite --use_NapShift --data_dir TEST_DATA/NapShift_Tests_For_Jack/TestSystems/FCP1/ForceFields/CALVADOS --CS_file ../../NMRData/experimental_CS.txt --cg_pdb system/helical_modelled_CA.pdb --sim_name use_FB

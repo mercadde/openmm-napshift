@@ -1,0 +1,10 @@
+{
+	"InstallScripts" : 
+	[
+		"/shares/mcul245/research/ressci201900070-rcha387/openmm-napshift/build_REP_AVG/cmake_install.cmake",
+		"/shares/mcul245/research/ressci201900070-rcha387/openmm-napshift/build_REP_AVG/platforms/reference/cmake_install.cmake",
+		"/shares/mcul245/research/ressci201900070-rcha387/openmm-napshift/build_REP_AVG/platforms/cuda/cmake_install.cmake",
+		"/shares/mcul245/research/ressci201900070-rcha387/openmm-napshift/build_REP_AVG/python/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

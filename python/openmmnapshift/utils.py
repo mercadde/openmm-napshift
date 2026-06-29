@@ -4,8 +4,13 @@ import pynmrstar
 from itertools import groupby
 import warnings
 
-from openmmnapshift.napshiftforce import NapShiftForce
+try:
+    from openmmnapshift.napshiftforce import NapShiftForce
+except Exception as e: 
+    warnings.warn(f"openmmnapshift: unable to import NapShiftForce - get_napshift_force() will fail. Error: {repr(e)}")
+
 from pycamcoil.camcoil_engine import CamCoil
+
 
 ATOM_TYPES = ['CA','CB','C','H','HA','N']
 RESIDUE_TYPES = {'ALA':'A', 'ARG':'R', 'ASN':'N', 'ASP':'D', 'CYS':'C', 'CYO':'X', 
