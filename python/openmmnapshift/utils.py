@@ -57,8 +57,8 @@ def parse_BMRB_entry(BMRB_id, output_dir):
         chemical_shifts_data = {}
         for (resid,restype,chainid,atomid,cs_val) in chemical_shit_loop.get_tag(['Comp_index_ID', 'Comp_ID', 'Auth_asym_ID', 'Atom_ID', 'Val']):
             if (resid,restype,chainid) not in chemical_shifts_data.keys(): chemical_shifts_data[(resid,restype,chainid)] = {}
-            if atomid == 'H': atomid = 'HN'
-            if atomid == 'C': atomid = 'CO'
+            if atomid == 'HN': atomid = 'H'
+            if atomid == 'CO': atomid = 'C'
             chemical_shifts_data[(resid,restype,chainid)][atomid] = cs_val
         with open(f'{output_dir}/{BMRB_id}_CS_{i}.txt', 'w') as f:
             suffix = "_fac"
