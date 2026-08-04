@@ -1,18 +1,17 @@
-name: OpenMMNapShift
+name: openmmnapshift
 channels:
-  - anaconda
+  - nvidia
   - conda-forge
   - defaults
 dependencies:
+  - cuda-toolkit=12.9.1
   - ipykernel
-  - mdanalysis 2.7.0
-  - numpy
-  - openmm >=8.4.0,<8.5.0a0
-  - pandas <=2.3.3
-  - python >=3.11,<3.12.0a0
-  - python_abi 3.11.* *_cp311
-  - pytorch >=2.9.1,<2.10.0a0
+  - mdanalysis
+  - numpy=2.4.3
+  - openmm=8.4.0=py311h1c77f12_0
+  - python=3.11.15
+  - pytorch=2.9.1=cuda129_mkl_py311_hcbd18c7_301
   - pip:
+      - pandas==2.3.3
       - pynmrstar
       - vermouth
-  
