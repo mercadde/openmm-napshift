@@ -316,6 +316,8 @@ double ReplicaGroup::executeBatched(CudaCalcNapShiftForceKernel *caller, OpenMM:
   {
     ContextSelector selector(caller->cu);
     CHECK_RESULT2(cuStreamWaitEvent(caller->cu.getCurrentStream(), doneEvent, 0), "Wait for pytorch failed", caller->cu);
+    // Becuase openmm syncs anyway later this is beter so all threads return to openmm in unison
+    CHECK_RESULT2(cuCtxSynchronize(), "Failed to synchronize the CUDA context", caller->cu);
   }
 
   if (includeForces && cached_K > 0) {
@@ -720,7 +722,6 @@ void CudaCalcNapShiftForceKernel::getIndexToAtom() {
                              &numParticles,
                              &indexToAtomArray.getDevicePointer()};
         cu.executeKernel(swapAtomToIndexKernel, inputArgs, numParticles, block_size);
-        // CHECK_RESULT(cuCtxSynchronize(), "Failed to synchronize the CUDA context"); // Synchronize before switching to the PyTorch context
     }
 }
 
@@ -774,12 +775,8 @@ double CudaCalcNapShiftForceKernel::execute(ContextImpl& context, bool includeFo
     }
 
     if (context.getParameter("NapShift_K") > 0){
-        // CHECK_RESULT(cuCtxPushCurrent(primaryContext), "Failed to push the CUDA context");
         getIndexToAtom();
         double energy = group->executeBatched(this, context, includeForces, includeEnergy);
-        // CUcontext ctx;
-        // CHECK_RESULT(cuCtxPopCurrent(&ctx), "Failed to pop the CUDA context");
-        // assert(primaryContext == ctx); 
     }
     return 0.0;
 
