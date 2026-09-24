@@ -53,9 +53,9 @@ CHI2_ATOMS = { "ARG" : ['CA', 'CB', 'CG', 'CD'],
 
 def parse_BMRB_entry(BMRB_id, output_dir):
     BMRB_entry = pynmrstar.Entry.from_database(BMRB_id)
-    for i, chemical_shit_loop in enumerate(BMRB_entry.get_loops_by_category("Atom_chem_shift")):
+    for i, chemical_shift_loop in enumerate(BMRB_entry.get_loops_by_category("Atom_chem_shift")):
         chemical_shifts_data = {}
-        for (resid,restype,chainid,atomid,cs_val) in chemical_shit_loop.get_tag(['Comp_index_ID', 'Comp_ID', 'Auth_asym_ID', 'Atom_ID', 'Val']):
+        for (resid,restype,chainid,atomid,cs_val) in chemical_shift_loop.get_tag(['Comp_index_ID', 'Comp_ID', 'Auth_asym_ID', 'Atom_ID', 'Val']):
             if (resid,restype,chainid) not in chemical_shifts_data.keys(): chemical_shifts_data[(resid,restype,chainid)] = {}
             if atomid == 'HN': atomid = 'H'
             if atomid == 'CO': atomid = 'C'
@@ -119,7 +119,7 @@ def get_napshift_force(top, chemical_shifts_file, model_type, camcoil=None):
             # split sequence into blocks of supported amino acids
             sequence_blocks = [''.join(g) for _, g in groupby(sequence, key=lambda x: x=='-')]
             if any([ '-' in block for block in sequence_blocks[1:-1]]):
-                warnings.warn("Warning: unsupported amino-acid type detected within protein seqence. Protein seqnece will be split into blocks of continuous stretches of standard amino acids and CamCoil Random Coil Chemical Shift prediction will be carried out only on these blocks. ")
+                warnings.warn("Warning: unsupported amino-acid type detected within protein seqence. Protein sequence will be split into blocks of continuous stretches of standard amino acids and CamCoil Random Coil Chemical Shift prediction will be carried out only on these blocks. ")
             # run camcoil only on the continuous stretches of supported amino acids
             camcoil_predictions = []
             for block in sequence_blocks:
@@ -161,7 +161,7 @@ def get_napshift_force(top, chemical_shifts_file, model_type, camcoil=None):
 
                     napshiftforce.addPeptide(*peptide_particle_indices,restype,
                                                 {k:v if not np.isnan(v) else -1 for k,v in experimental_chemical_shifts.items()}, # -1 to indicate where data is not provided for a chemical shift, and that it should be ignored by the restraints
-                                                {k:v if not np.isnan(v) else -1 for k,v in random_coil_chemical_shifts.items()},         # -1 to indicate where data is not provided for a chemical shift, and that it should be ignored by the restraints
+                                                {k:v if not np.isnan(v) else -1 for k,v in random_coil_chemical_shifts.items()},  # -1 to indicate where data is not provided for a chemical shift, and that it should be ignored by the restraints
                                                 experimental_chemical_shift_factors,
                                                 int(residue.id),
                                                 chain.id)
